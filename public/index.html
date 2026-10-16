@@ -106,6 +106,60 @@ html{scroll-behavior:smooth}body{background:radial-gradient(ellipse at 50% -18%,
 @media(max-width:620px){.top{height:58px;min-height:58px;background:#080d17f5}.layout{display:block}.content{padding:13px 13px 42px}.hero{padding-top:30px}.hero h1{font-size:clamp(34px,10vw,47px);letter-spacing:-1.7px}.hero p{font-size:13px}.composer{border-radius:16px;padding:12px}.composer textarea{font-size:16px;min-height:100px}.composefoot{gap:7px}.build{padding:11px 13px}.cards{grid-template-columns:1fr}.card{border-radius:15px}.art{height:120px}.section{margin-top:34px}.sidebtn{padding:12px}.publish-overlay{padding:0}.publish-sheet{width:100%;border-radius:24px 24px 0 0;padding:24px 18px calc(20px + env(safe-area-inset-bottom))}.preview-screen-head{padding:0 10px}.preview-screen-head button{padding:8px 9px}.preview-screen-foot{padding-bottom:calc(8px + env(safe-area-inset-bottom))}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
+
+/* Vell AI Studio v3 — UX polish, build transparency and safer controls */
+:root{--focus:#9bc4ff;--good:#7ed9b0;--warn:#f3c77c;--bad:#ff9da8}
+:focus-visible{outline:2px solid var(--focus)!important;outline-offset:3px!important}
+::selection{background:#426ba7;color:#fff}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation}
+.top{padding-top:env(safe-area-inset-top);z-index:30}
+aside{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+.content{padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+.hero h1{max-width:850px;margin-left:auto;margin-right:auto;text-wrap:balance}
+.hero p{text-wrap:pretty}
+.composer textarea{line-height:1.7}
+.composefoot{flex-wrap:wrap}
+.quick{gap:9px}
+.quick button{min-height:36px}
+.sidebtn{min-height:42px}
+.btn,.build{min-height:40px}
+.card:focus-visible{border-color:var(--focus);transform:translateY(-2px)}
+.card,.sidebtn,.btn,.build,.quick button{transition:background .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+.status{line-height:1.65;overflow-wrap:anywhere}
+.status.error{padding:10px 12px;border:1px solid #69343d;background:#24151c;border-radius:10px}
+.messages{scroll-margin-top:85px}
+.bubble{line-height:1.7}
+.preview iframe{background:#fff}
+#appInterview{border:1px solid #2c4568!important;border-radius:16px!important;background:linear-gradient(145deg,#111d30,#0b1220)!important;color:#edf4ff!important;padding:18px!important;margin:18px auto!important}
+#appInterview h3{color:#f2f7ff}
+#appInterview .interview-intro{color:#9fb0c9}
+#appInterview select,#appInterview input{max-width:100%;min-height:44px}
+#appInterview .interview-progress{height:5px;border-radius:9px;background:#202d42;overflow:hidden}
+#appInterview #interviewProgress{display:block;height:100%;background:linear-gradient(90deg,#8fc0ff,#537fe2);transition:width .2s}
+#appInterview .interview-summary{color:#dbe8ff;line-height:1.8;background:#0a1322;border:1px solid #2a3f60;border-radius:10px;padding:12px;margin-top:12px}
+#appInterview .interview-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+#appInterview .interview-actions button{flex:1;min-height:44px}
+.publish-sheet{max-height:calc(100dvh - 24px);overflow:auto}
+.publish-actions button{min-height:44px}
+.preview-screen{padding-bottom:env(safe-area-inset-bottom)}
+.preview-screen-head button{min-height:40px}
+.apk-link{display:block;padding:10px 0;line-height:1.5}
+.apk-result{line-height:1.7}
+#apkBuild:disabled,#generate:disabled,#refineBtn:disabled,#publishConfirm:disabled{filter:saturate(.65);cursor:wait}
+@media(max-width:620px){
+ .top{padding-left:12px;padding-right:12px}.topright{gap:6px}.topright .btn{min-height:38px}
+ .content{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
+ .hero{padding-top:25px}.hero h1{font-size:clamp(33px,9.6vw,46px);line-height:1.08}.hero p{line-height:1.75}
+ .quick{justify-content:flex-start}.quick button{font-size:12px;min-height:39px}
+ .composefoot .spacer{flex-basis:100%;height:0}.composefoot .hint{display:none}.composefoot .build{margin-left:auto}
+ .section{align-items:flex-start;flex-direction:column;gap:5px}.card:hover{transform:none}
+ .preview{height:55dvh;min-height:280px}
+ .actions .btn{flex:1}#appInterview{padding:15px!important}#appInterview .interview-actions button{min-width:115px}
+}
+@media(min-width:621px) and (max-width:900px){.layout{grid-template-columns:205px minmax(0,1fr)}.content{padding-left:20px;padding-right:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
 </style></head><body><div class="app"><header class="top"><button class="btn mobilemenu" id="menu" aria-label="Open menu">☰</button><div class="brand"><div class="mark">✳</div><span>Vell AI</span><span class="beta">STUDIO</span></div><div class="topright"><span class="pill">✦ AI builder</span><button class="btn" id="sites">My live sites ↗</button><button class="btn primary" id="newProject">＋ New app</button></div></header><div class="layout"><aside id="sidebar"><button class="sidebtn active" id="homeNav"><span class="sicon">⌂</span> Home</button><button class="sidebtn" id="buildNav"><span class="sicon">✳</span> Create with AI</button><button class="sidebtn" id="previewNav"><span class="sicon">▣</span> Preview</button><button class="sidebtn" id="deployNav"><span class="sicon">↗</span> Publish & deploy</button><div class="label">Workspace</div><div class="project" id="createSide">＋ Create a project</div><div class="label">Recent projects</div><div class="project" data-p="Build a sleek personal portfolio with projects, skills and contact form.">Portfolio website</div><div class="project" data-p="Build a responsive ecommerce store with product cards, cart and WhatsApp ordering.">Online store</div><div class="project" data-p="Build a business dashboard with analytics, activity and settings.">Business dashboard</div><div class="profile"><div class="avatar">V</div><div><b>Vell AI Studio</b><small>Build smarter · Ship faster</small></div></div></aside><main class="main"><div class="toolbar">Workspace&nbsp; / &nbsp;<strong id="crumb">Home</strong></div><div class="content" id="discovery"><section class="hero"><span class="eyebrow"><i class="dot"></i> YOUR AI PRODUCT STUDIO</span><h1>What will you build <span>next?</span></h1><p>Turn your idea into an app or website. Describe what you need and Vell AI will help you build it.</p><div class="composer"><textarea id="prompt" rows="2" placeholder="Describe the app you want to create…"></textarea><div class="composefoot"><button class="btn" id="attach">＋</button><span class="hint"></span><span class="spacer"></span><button class="build" id="generate">Build ↗</button></div></div><div class="quick"><button data-p="Build a responsive portfolio website with project gallery, skills, about section and contact form.">✦ Portfolio</button><button data-p="Create a premium Nigerian online store with products, search, categories, naira prices and WhatsApp ordering.">▧ Online store</button><button data-p="Build a SaaS dashboard with analytics cards, charts, activity feed and admin settings.">▦ Dashboard</button><button data-p="Create a mobile-first AI assistant web app with chat history, settings and a clean chat interface.">✳ AI assistant</button></div></section><div class="section"><div><h2>Explore templates</h2><p>Start with a template or describe your own idea.</p></div><span class="muted">Explore templates ↘</span></div><div class="cards"><button class="card" data-p="Create a polished SaaS analytics dashboard with dark navigation, revenue metrics, activity chart, recent transactions, responsive layout and working date filters."><div class="art"><div class="mock"><div class="mockside"></div><div class="mockmain"><div class="line"></div><div class="line short"></div><div class="minicards"><i></i><i></i><i></i></div><div class="line"></div></div></div></div><div class="cardinfo"><b>Analytics dashboard</b><span>Metrics, charts and admin tools</span></div></button><button class="card" data-p="Create a premium ecommerce storefront for a Nigerian fashion brand, with hero banner, product grid, category filters, naira prices, cart interactions and WhatsApp order links."><div class="art store"><div class="mock"><div class="mockmain"><div class="line"></div><div class="line short"></div><div class="minicards"><i></i><i></i><i></i></div></div></div></div><div class="cardinfo"><b>Online store</b><span>Products, shopping and orders</span></div></button><button class="card" data-p="Build a mobile-first productivity app with task cards, progress indicators, filters, add-task form, editable tasks and polished empty states."><div class="art mobile"><div class="mock" style="max-width:110px;margin:auto"><div class="mockmain"><div class="line"></div><div class="minicards"><i></i><i></i></div><div class="line short"></div><div class="minicards"><i></i><i></i></div></div></div></div><div class="cardinfo"><b>Productivity app</b><span>Tasks, workflows and progress</span></div></button></div><section class="work" id="workarea"><button class="btn screenback" id="backHome">← Back to home</button><div class="section" style="margin-top:10px"><div><h2 id="worktitle">Your app workspace</h2><p>Chat with your AI builder, review your app, then publish when it is ready.</p></div></div><div class="chat-label">Build conversation</div><div class="messages" id="messages"></div><div class="chat-suggestions" id="chatSuggestions"><button data-refine="Make the design more premium with better spacing, typography and responsive layouts.">✦ Improve design</button><button data-refine="Add login and sign-up screens with polished form validation.">＋ Add authentication</button><button data-refine="Make every button and form interactive and improve mobile usability.">⚡ Add functionality</button><button data-refine="Add a dashboard with useful analytics cards and navigation.">▦ Add dashboard</button></div><div class="actions preview-actions"><button class="btn primary" id="previewButton" type="button" disabled>▶ Preview app</button><span class="muted">Build an app first, then preview it here.</span></div>
 <div id="previewPlaceholder" class="status">Your preview will open in full screen.</div>
 <iframe id="frame"

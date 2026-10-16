@@ -77,6 +77,35 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  res.status(202).json({ok:true,message:'Flutter source generated and uploaded. GitHub Actions is preparing the Android APK. Open the Actions link and download the flutter-android-apk artifact after the run succeeds.',repository:repoUrl,actionsUrl:'https://github.com/'+repo.full_name+'/actions',workflowUrl:'https://github.com/'+repo.full_name+'/actions/workflows/build-flutter-apk.yml',sourceFile:'https://github.com/'+repo.full_name+'/blob/main/mobile/lib/main.dart'});
 }catch(e){res.status(e.status||500).json({error:(e.message||'Could not create Flutter APK project.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
 
+
+app.get('/api/flutter-build-status',async(req,res)=>{try{
+ const full=String(req.query.repository||'').trim();
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
+ const data=await gh('https://api.github.com/repos/'+full+'/actions/runs?per_page=1');
+ const run=(data.workflow_runs||[])[0];
+ if(!run)return res.json({ok:true,state:'queued',message:'Waiting for GitHub Actions to start the build.'});
+ const artifacts=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/artifacts');
+ const artifact=(artifacts.artifacts||[]).find(a=>!a.expired&&a.name);
+ const state=run.status==='completed'?(run.conclusion==='success'?'success':'failed'):(run.status||'queued');
+ let errorSummary='';
+ if(state==='failed'){
+  try{
+   const jobs=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/jobs');
+   const failed=(jobs.jobs||[]).find(j=>j.conclusion==='failure');
+   if(failed)errorSummary='Build failed in step: '+failed.name+'. Open logs for details, or retry the build.';
+  }catch(_){}
+ }
+ res.json({ok:true,state,runId:run.id,runNumber:run.run_number,runUrl:run.html_url,repository:full,message:state==='success'?'APK built successfully. Your ZIP is ready.':state==='failed'?(errorSummary||'Build failed.'):state==='in_progress'?'Flutter is compiling your APK. This can take a few minutes.':'Preparing the cloud build…',artifactId:artifact?.id||null,artifactName:artifact?.name||null,downloadUrl:artifact&&!artifact.expired?'/api/flutter-apk-zip?repository='+encodeURIComponent(full)+'&artifactId='+artifact.id:null});
+ }catch(e){res.status(500).json({error:e.message||'Could not check the APK build.'})}});
+app.get('/api/flutter-apk-zip',async(req,res)=>{try{
+ const full=String(req.query.repository||'').trim(),id=String(req.query.artifactId||'').trim();
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});
+ const response=await fetch('https://api.github.com/repos/'+full+'/actions/artifacts/'+id+'/zip',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
+ if(!response.ok)throw Error('GitHub could not download this artifact (HTTP '+response.status+').');
+ res.setHeader('Content-Type','application/zip');res.setHeader('Content-Disposition','attachment; filename="vell-android-apk.zip"');
+ const bytes=Buffer.from(await response.arrayBuffer());res.setHeader('Content-Length',bytes.length);res.end(bytes);
+ }catch(e){res.status(500).json({error:e.message||'Could not download the APK ZIP.'})}});
+
 app.post('/api/publish',async(req,res)=>{try{const token=process.env.GITHUB_TOKEN,repo=process.env.GITHUB_REPO,branch=process.env.GITHUB_BRANCH||'main';if(!token||!repo)return res.status(503).json({error:'Set GITHUB_TOKEN and GITHUB_REPO on Render.'});const html=String(req.body.html||'');if(!/^<!doctype html|^<html/i.test(html.trim())||html.length>500000)return res.status(400).json({error:'A valid HTML website under 500 KB is required.'});const base='https://api.github.com/repos/'+repo;let sha;try{sha=(await gh(base+'/contents/index.html?ref='+encodeURIComponent(branch))).sha}catch(e){if(!String(e.message).includes('Not Found'))throw e}const d=await gh(base+'/contents/index.html',{method:'PUT',body:JSON.stringify({message:'Publish AI-generated website',content:Buffer.from(html).toString('base64'),branch,...(sha?{sha}:{})})});res.json({ok:true,message:'Website committed to GitHub.',commit:d.commit?.html_url})}catch(e){res.status(500).json({error:e.message||'GitHub publishing failed.'})}});
 app.post('/api/deploy',async(req,res)=>{try{const key=process.env.RENDER_API_KEY,id=process.env.RENDER_SERVICE_ID;if(!key||!id)return res.status(503).json({error:'This button only redeploys an existing Render service. Use Build & Deploy to create a new project, and configure RENDER_API_KEY and RENDER_OWNER_ID.'});const d=await renderApi('https://api.render.com/v1/services/'+encodeURIComponent(id)+'/deploys',{method:'POST',body:JSON.stringify({clearCache:'do_not_clear'})});res.json({ok:true,message:'Existing Render service deployment started.',deployId:d.id||d.deploy?.id||null})}catch(e){res.status(500).json({error:e.message||'Could not connect to Render API.'})}});
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));app.listen(PORT,'0.0.0.0',()=>console.log('Vell AI Studio listening on '+PORT));

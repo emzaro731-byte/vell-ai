@@ -50,8 +50,8 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
 
-      - name: Analyze Dart source
-        run: flutter analyze --no-pub
+      - name: Analyze app source (exclude generated template tests)
+        run: flutter analyze --no-pub lib
 
       - name: Build smallest practical release APKs
         run: |

@@ -134,7 +134,7 @@ class _StudioHomeState extends State<StudioHome> {
     const SizedBox(height: 20), Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: const Color(0xFF111827), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF27334A))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Generated website', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)), const SizedBox(height: 12),
       Text(html == null ? 'No project generated yet. Return to Build and describe your idea.' : 'Generated HTML is ready to preview.', style: const TextStyle(color: Color(0xFF9BAAC7), height: 1.4)),
-      const SizedBox(height: 16), SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: html == null ? null : preview, icon: const Icon(Icons.visibility_outlined), label: const Text('Open live preview'))])),
+      const SizedBox(height: 16), SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: html == null ? null : preview, icon: const Icon(Icons.visibility_outlined), label: const Text('Open live preview')))])),
     const SizedBox(height: 14), OutlinedButton.icon(onPressed: busy ? null : retrieveUrl, icon: const Icon(Icons.refresh), label: const Text('Refresh website URL')),
     if (siteUrl != null && siteUrl!.startsWith('http')) linkCard('Live website', siteUrl!),
     if (repoUrl != null && repoUrl!.startsWith('http')) linkCard('GitHub repository', repoUrl!),

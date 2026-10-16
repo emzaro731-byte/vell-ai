@@ -72,11 +72,39 @@ class VellApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Vell AI Studio', debugShowCheckedModeBanner: false,
-    theme: ThemeData(useMaterial3: true, brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF080D18),
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF6685FF), brightness: Brightness.dark),
-      inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: const Color(0xFF111827),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)))),
+    theme: ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: const Color(0xFF212121),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFF212121),
+        foregroundColor: Color(0xFFF5F5F5),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF10A37F),
+        brightness: Brightness.dark,
+        surface: const Color(0xFF212121),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF303030),
+        hintStyle: const TextStyle(color: Color(0xFFAAAAAA)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: const BorderSide(color: Color(0xFF424242)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: const BorderSide(color: Color(0xFF666666)),
+        ),
+      ),
+    ),
     home: const StudioHome());
 }
 
@@ -160,35 +188,118 @@ class _StudioHomeState extends State<StudioHome> {
     bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (v) => setState(() => tab = v), destinations: const [
       NavigationDestination(icon: Icon(Icons.auto_awesome_outlined), selectedIcon: Icon(Icons.auto_awesome), label: 'Build'),
       NavigationDestination(icon: Icon(Icons.web_asset_outlined), selectedIcon: Icon(Icons.web_asset), label: 'Workspace')]));
-  Widget buildHome() => ListView(padding: const EdgeInsets.all(18), children: [
-    Container(padding: const EdgeInsets.all(22), decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF1A2850), Color(0xFF15152D), Color(0xFF111827)]), border: Border.all(color: const Color(0xFF34456D))), child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('✦  AI-POWERED APP BUILDER', style: TextStyle(fontSize: 10, color: Color(0xFFB7C5FF), letterSpacing: 1)),
-      SizedBox(height: 18), Text('Imagine it.\nBuild it with AI.', style: TextStyle(fontSize: 32, height: 1.1, fontWeight: FontWeight.w800)),
-      SizedBox(height: 12), Text('Create responsive websites and app experiences from a simple description.', style: TextStyle(color: Color(0xFFB4C0D8), height: 1.5)),
-      SizedBox(height: 18), Text('⚡ Powered by GPT-OSS 120B via your Vell backend', style: TextStyle(fontSize: 11, color: Color(0xFFD1D8E8)))])),
-    const SizedBox(height: 22), const Text('What do you want to build?', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-    const SizedBox(height: 8), TextField(controller: prompt, minLines: 4, maxLines: 7, maxLength: 8000, decoration: const InputDecoration(hintText: 'Describe your website or app idea…', alignLabelWithHint: true)),
-    const SizedBox(height: 10), Row(children: [
-      Expanded(child: FilledButton.icon(onPressed: busy ? null : generate, icon: const Icon(Icons.auto_awesome), label: const Text('Generate preview'))),
-      const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: busy ? null : buildDeploy, icon: const Icon(Icons.rocket_launch_outlined), label: const Text('Build & deploy')))]),
-    const SizedBox(height: 10),
-    SizedBox(width: double.infinity, child: FilledButton.icon(
-      onPressed: busy ? null : openFlutterBuilder,
-      icon: const Icon(Icons.android),
-      label: const Text('Build Flutter APK'),
-      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E8B57), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15)),
-    )),
-    if (busy) const Padding(padding: EdgeInsets.only(top: 14), child: LinearProgressIndicator()),
-    const SizedBox(height: 14), Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: const Color(0xFF111827), borderRadius: BorderRadius.circular(14)), child: Text(status, style: const TextStyle(color: Color(0xFFC3CEE2), fontSize: 12, height: 1.45))),
-    if (siteUrl != null && siteUrl!.startsWith('http')) linkCard('Live website', siteUrl!),
-    if (repoUrl != null && repoUrl!.startsWith('http')) linkCard('GitHub repository', repoUrl!),
-    if (flutterRepoUrl != null && flutterRepoUrl!.startsWith('http')) linkCard('Flutter APK source repository', flutterRepoUrl!),
-    if (actionsUrl != null && actionsUrl!.startsWith('http')) InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!))), child: linkCard('Open APK build status on GitHub Actions', actionsUrl!)),
-    const SizedBox(height: 24), const Text('Start with a template', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-    const SizedBox(height: 12), GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: templates.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.2), itemBuilder: (context, i) {
-      final item = templates[i];
-      return InkWell(onTap: () { prompt.text = item.$3; }, borderRadius: BorderRadius.circular(16), child: Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFF111827), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFF27334A))), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(item.$2, color: const Color(0xFF9BAFFF), size: 24), const Spacer(), Text(item.$1, style: const TextStyle(fontWeight: FontWeight.w700)), const SizedBox(height: 4), const Text('Tap to use prompt', style: TextStyle(fontSize: 10, color: Color(0xFF8E9CB7)))])));
-    }), const SizedBox(height: 14), OutlinedButton.icon(onPressed: busy ? null : retrieveUrl, icon: const Icon(Icons.link), label: const Text('Retrieve deployed website URL'))]);
+  Widget buildHome() => ListView(
+    padding: const EdgeInsets.fromLTRB(18, 22, 18, 28),
+    children: [
+      const SizedBox(height: 38),
+      const Center(
+        child: Text(
+          'What can I help you build?',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 27, height: 1.2, fontWeight: FontWeight.w600, letterSpacing: -0.7),
+        ),
+      ),
+      const SizedBox(height: 28),
+      Container(
+        padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF303030),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: const Color(0xFF454545)),
+        ),
+        child: Column(
+          children: [
+            TextField(
+              controller: prompt,
+              minLines: 3,
+              maxLines: 7,
+              maxLength: 8000,
+              decoration: const InputDecoration(
+                counterText: '',
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                hintText: 'Message Vell AI',
+                contentPadding: EdgeInsets.fromLTRB(5, 8, 5, 4),
+              ),
+            ),
+            Row(children: [
+              IconButton(
+                tooltip: 'Build a Flutter APK',
+                onPressed: busy ? null : openFlutterBuilder,
+                icon: const Icon(Icons.add_circle_outline, color: Color(0xFFBDBDBD)),
+              ),
+              const SizedBox(width: 2),
+              const Expanded(child: Text('Build • Preview • Publish', style: TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)))),
+              IconButton(
+                tooltip: 'Generate preview',
+                onPressed: busy ? null : generate,
+                icon: const Icon(Icons.auto_awesome_outlined, color: Color(0xFFE6E6E6)),
+              ),
+              IconButton.filled(
+                tooltip: 'Send message',
+                onPressed: busy ? null : generate,
+                style: IconButton.styleFrom(backgroundColor: const Color(0xFFF5F5F5), foregroundColor: const Color(0xFF171717)),
+                icon: const Icon(Icons.arrow_upward_rounded),
+              ),
+            ]),
+          ],
+        ),
+      ),
+      if (busy) const Padding(
+        padding: EdgeInsets.only(top: 18),
+        child: LinearProgressIndicator(minHeight: 2),
+      ),
+      if (status != 'Your next idea starts here.')
+        Container(
+          margin: const EdgeInsets.only(top: 16),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF414141)),
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.auto_awesome, size: 18, color: Color(0xFF10A37F)),
+            const SizedBox(width: 10),
+            Expanded(child: Text(status, style: const TextStyle(color: Color(0xFFE4E4E4), height: 1.5))),
+          ]),
+        ),
+      const SizedBox(height: 24),
+      const Center(child: Text('Or start with an idea', style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)))),
+      const SizedBox(height: 12),
+      ...templates.map((item) => Container(
+        margin: const EdgeInsets.only(bottom: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF262626),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFF3A3A3A)),
+        ),
+        child: ListTile(
+          leading: Icon(item.$2, color: const Color(0xFFBDBDBD)),
+          title: Text(item.$1, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          subtitle: const Text('Use this idea as your prompt', style: TextStyle(fontSize: 11, color: Color(0xFFAAAAAA))),
+          trailing: const Icon(Icons.add, size: 18, color: Color(0xFFAAAAAA)),
+          onTap: () => setState(() => prompt.text = item.$3),
+        ),
+      )),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: busy ? null : openFlutterBuilder,
+        icon: const Icon(Icons.android),
+        label: const Text('Build an Android APK'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE5E5E5),
+          side: const BorderSide(color: Color(0xFF484848)),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      if (siteUrl != null && siteUrl!.startsWith('http')) linkCard('Live website', siteUrl!),
+      if (repoUrl != null && repoUrl!.startsWith('http')) linkCard('Project source', repoUrl!),
+    ],
+  );
   Widget buildWorkspace() => ListView(padding: const EdgeInsets.all(20), children: [
     const Text('Workspace', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
     const SizedBox(height: 6), const Text('Review your generated project before publishing.', style: TextStyle(color: Color(0xFF9BAAC7))),

@@ -268,7 +268,13 @@ class _FlutterBuildPageState extends State<FlutterBuildPage> {
       setState(() => status = 'Please describe the app you want to build.');
       return;
     }
-    setState(() { busy = true; status = 'Sending your app idea to Vell AI…'; });
+    setState(() {
+      busy = true;
+      repository = null;
+      actionsUrl = null;
+      status = 'Sending your app idea to Vell AI…';
+    });
+    var repairAttempted = false;
     try {
       final response = await http.post(
         Uri.parse('$apiBase/api/build-flutter-apk'),
@@ -276,17 +282,67 @@ class _FlutterBuildPageState extends State<FlutterBuildPage> {
         body: jsonEncode({'prompt': prompt.text.trim()}),
       ).timeout(const Duration(minutes: 3));
       final data = jsonDecode(response.body);
-      if (data is! Map<String, dynamic>) throw Exception('Unexpected response from the Vell backend.');
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Unexpected response from the Vell backend.');
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(data['error']?.toString() ?? 'Could not start the APK build.');
       }
-      setState(() {
-        repository = data['repository']?.toString();
+      final repoUrl = data['repository']?.toString() ?? '';
+      final match = RegExp(r'github\.com/([^/]+/[^/]+)').firstMatch(repoUrl);
+      if (match == null) throw Exception('Build started, but the generated repository link was missing.');
+      final fullRepo = match.group(1)!.replaceFirst(RegExp(r'\.git$'), '');
+      if (mounted) setState(() {
+        repository = repoUrl;
         actionsUrl = data['actionsUrl']?.toString();
-        status = data['message']?.toString() ?? 'Your Flutter project was created. GitHub Actions is building the APK.';
+        status = 'Project created. Waiting for the APK build to finish… You can stay on this screen.';
       });
+
+      for (var attempt = 0; attempt < 180; attempt++) {
+        await Future.delayed(const Duration(seconds: 8));
+        if (!mounted) return;
+        final check = await http.get(Uri.parse(
+          '$apiBase/api/flutter-build-status?repository=${Uri.encodeQueryComponent(fullRepo)}',
+        )).timeout(const Duration(seconds: 45));
+        final build = jsonDecode(check.body);
+        if (build is! Map<String, dynamic>) continue;
+        if (check.statusCode < 200 || check.statusCode >= 300) {
+          throw Exception(build['error']?.toString() ?? 'Could not check build progress.');
+        }
+        final state = build['state']?.toString() ?? 'queued';
+        if (state == 'success' && build['downloadUrl'] != null) {
+          final directZip = '$apiBase${build['downloadUrl']}';
+          if (mounted) setState(() {
+            actionsUrl = directZip;
+            status = '✅ APK build completed. Your APK ZIP is ready below. Tap “Download APK ZIP”.';
+          });
+          return;
+        }
+        if (state == 'failed') {
+          if (!repairAttempted) {
+            repairAttempted = true;
+            if (mounted) setState(() => status = 'Build error detected. Vell AI is reading the build failure and repairing the Flutter source automatically…');
+            final repair = await http.post(
+              Uri.parse('$apiBase/api/flutter-auto-fix'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'repository': fullRepo, 'runId': build['runId']}),
+            ).timeout(const Duration(minutes: 3));
+            final repairData = jsonDecode(repair.body);
+            if (repair.statusCode < 200 || repair.statusCode >= 300) {
+              throw Exception(repairData is Map ? (repairData['error']?.toString() ?? 'Automatic repair failed.') : 'Automatic repair failed.');
+            }
+            if (mounted) setState(() => status = '🛠️ Source repaired. Waiting for the retry build…');
+            continue;
+          }
+          throw Exception('The build still fails after one automatic repair. Check the build logs for the remaining error.');
+        }
+        if (mounted) setState(() {
+          status = '${build['message'] ?? 'Building APK…'} (check ${attempt + 1}/180)';
+        });
+      }
+      throw Exception('The build is taking longer than expected. You can stay here and try again later.');
     } catch (e) {
-      setState(() => status = e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) setState(() => status = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -335,7 +391,7 @@ class _FlutterBuildPageState extends State<FlutterBuildPage> {
                 Text('Your idea → Flutter source → APK',
                   style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
                 SizedBox(height: 8),
-                Text('Vell AI creates a Flutter project and starts a cloud APK build. You can track the build and download the APK from GitHub Actions when it finishes.',
+                Text('Vell AI builds your APK here, keeps this screen loading, checks build errors, tries an automatic repair, and gives you a direct APK ZIP when ready.',
                   style: TextStyle(color: Color(0xFFB4C0D8), height: 1.5)),
               ],
             ),
@@ -394,7 +450,7 @@ class _FlutterBuildPageState extends State<FlutterBuildPage> {
             resultLink('Open generated source repository', repository!,
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: repository!)))),
           if (actionsUrl != null && actionsUrl!.startsWith('http'))
-            resultLink('Track build / download APK', actionsUrl!,
+            resultLink('Download APK ZIP', actionsUrl!,
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!)))),
         ],
       ),

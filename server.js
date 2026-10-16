@@ -20,6 +20,39 @@ async function listRenderSites(){
  const items=Array.isArray(data)?data:(data.services||data.items||[]);
  return items.map(item=>item.service||item).map(s=>({id:s.id||null,name:s.name||'Render site',type:s.type||s.serviceDetails?.runtime||'service',url:s.url||s.serviceDetails?.url||s.serviceDetails?.host||null,repo:s.repo||s.serviceDetails?.repo||null,status:s.suspended?'suspended':(s.status||s.serviceDetails?.status||'unknown')})).filter(s=>s.url||s.id);
 }
+
+const PROJECTS_PATH='vell-projects/history.json';
+async function readProjectStore(){
+ const full=process.env.GITHUB_REPO||'emzaro731-byte/vell-ai';
+ try{
+  const f=await gh('https://api.github.com/repos/'+full+'/contents/'+PROJECTS_PATH+'?ref=main');
+  return {full,sha:f.sha,items:JSON.parse(Buffer.from(f.content||'','base64').toString('utf8'))};
+ }catch(e){
+  if(String(e.message).includes('Not Found'))return {full,sha:null,items:[]};
+  throw e;
+ }
+}
+app.get('/api/projects',async(req,res)=>{try{
+ if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Project history needs GITHUB_TOKEN configured on Render.'});
+ const store=await readProjectStore();
+ res.json({ok:true,projects:(Array.isArray(store.items)?store.items:[]).map(({html,...p})=>({...p,hasPreview:!!html,html}))});
+}catch(e){res.status(500).json({error:e.message||'Could not load saved projects.'})}});
+app.post('/api/projects',async(req,res)=>{try{
+ if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Project history needs GITHUB_TOKEN configured on Render.'});
+ const p=req.body||{};
+ const prompt=String(p.prompt||'').trim(), html=typeof p.html==='string'?p.html:'';
+ if(!prompt)return res.status(400).json({error:'Project prompt is required.'});
+ if(prompt.length>8000||html.length>140000)return res.status(413).json({error:'Project exceeds the history storage limit. Shorten the prompt or preview.'});
+ const store=await readProjectStore();
+ const id=String(p.id||('proj-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7))).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80);
+ const project={id,title:String(p.title||prompt.split(/[\\n.!?]/)[0]||'Untitled project').slice(0,64),prompt,html,kind:String(p.kind||'generate').slice(0,40),updatedAt:new Date().toISOString(),repository:store.full};
+ const items=Array.isArray(store.items)?store.items:[];
+ const next=[project,...items.filter(x=>x.id!==id)].slice(0,30);
+ const body={message:'Save Vell AI project history: '+project.title,content:Buffer.from(JSON.stringify(next,null,2)).toString('base64'),branch:'main',...(store.sha?{sha:store.sha}:{})};
+ await gh('https://api.github.com/repos/'+store.full+'/contents/'+PROJECTS_PATH,{method:'PUT',body:JSON.stringify(body)});
+ res.json({ok:true,project:{...project,hasPreview:!!html},message:'Project saved to your existing Vell AI repository.'});
+}catch(e){res.status(500).json({error:e.message||'Could not save project history.'})}});
+
 app.get('/api/sites',async(req,res)=>{try{const sites=await listRenderSites();res.json({ok:true,sites:sites.filter(s=>s.url),message:sites.some(s=>s.url)?'Retrieved deployed site URLs.':'No site URLs are available yet. A new Render deployment may still be provisioning.'})}catch(e){res.status(e.status||500).json({error:e.message||'Could not retrieve Render site URLs.'})}});
 app.post('/api/site-url',async(req,res)=>{try{
  const requested=String(req.body.serviceId||req.body.name||'').trim();

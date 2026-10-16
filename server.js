@@ -1,7 +1,13 @@
 const express=require('express'),path=require('path');
+const { createClient } = require('@supabase/supabase-js');
 const app=express();app.use(express.json({limit:'2mb'}));app.use(express.static(path.join(__dirname,'public')));
 const PORT=process.env.PORT||10000;
-app.get('/api/health',(_,r)=>r.json({ok:true,aiConfigured:!!process.env.GROQ_API_KEY,githubConfigured:!!process.env.GITHUB_TOKEN,renderConfigured:!!(process.env.RENDER_API_KEY&&process.env.RENDER_OWNER_ID)}));
+const supabaseUrl=process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL||'';
+const supabaseKey=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY||'';
+const supabaseConfigured=!!(supabaseUrl&&supabaseKey);
+const supabase=supabaseConfigured?createClient(supabaseUrl,supabaseKey,{auth:{persistSession:false,autoRefreshToken:false}}):null;
+app.get('/api/health',(_,r)=>r.json({ok:true,aiConfigured:!!process.env.GROQ_API_KEY,githubConfigured:!!process.env.GITHUB_TOKEN,renderConfigured:!!(process.env.RENDER_API_KEY&&process.env.RENDER_OWNER_ID),supabaseConfigured}));
+app.get('/api/supabase/status',async(_,res)=>{if(!supabase)return res.status(503).json({ok:false,configured:false,error:'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Render Environment.'});try{const {error}=await supabase.from('vell_projects').select('id',{head:true,count:'exact'});if(error)throw error;res.json({ok:true,configured:true,databaseConnected:true,message:'Supabase is connected.'});}catch(e){res.status(503).json({ok:false,configured:true,databaseConnected:false,error:e.message||'Supabase connection failed. Check the vell_projects table and database permissions.'})}});
 async function generateHtml(prompt,existingHtml=''){
  if(!process.env.GROQ_API_KEY)throw Object.assign(Error('Add GROQ_API_KEY in Render Environment.'),{status:503});
  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.35,max_tokens:7000,messages:[{role:'system',content:'Return ONLY a complete self-contained responsive HTML document. Include CSS and JavaScript inline. Use accessible semantic HTML, polished modern design and working front-end interactions. No markdown fences or explanation. Never claim a form or payment actually completed. The result must work as a static website on Render. If EXISTING PROJECT HTML is provided, update that project in place, preserve its existing features and design unless asked to change them, and do not restart from a blank project.'},{role:'user',content:(existingHtml?'Continue updating this existing project. Apply the user request to its current code, preserving unrelated features.\nUSER REQUEST: '+prompt+'\nEXISTING PROJECT HTML:\n'+existingHtml:'Build this website/app interface: '+prompt)}]})});

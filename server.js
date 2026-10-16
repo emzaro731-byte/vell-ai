@@ -97,6 +97,26 @@ app.get('/api/flutter-build-status',async(req,res)=>{try{
  }
  res.json({ok:true,state,runId:run.id,runNumber:run.run_number,runUrl:run.html_url,repository:full,message:state==='success'?'APK built successfully. Your ZIP is ready.':state==='failed'?(errorSummary||'Build failed.'):state==='in_progress'?'Flutter is compiling your APK. This can take a few minutes.':'Preparing the cloud build…',artifactId:artifact?.id||null,artifactName:artifact?.name||null,downloadUrl:artifact&&!artifact.expired?'/api/flutter-apk-zip?repository='+encodeURIComponent(full)+'&artifactId='+artifact.id:null});
  }catch(e){res.status(500).json({error:e.message||'Could not check the APK build.'})}});
+
+app.post('/api/flutter-auto-fix',async(req,res)=>{try{
+ const full=String(req.body.repository||'').trim(),runId=String(req.body.runId||'').trim();
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(runId))return res.status(400).json({error:'A valid repository and failed run ID are required.'});
+ if(!process.env.GROQ_API_KEY)throw Error('Automatic repair needs GROQ_API_KEY in Render.');
+ const jobs=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+runId+'/jobs');
+ const failed=(jobs.jobs||[]).find(j=>j.conclusion==='failure');
+ if(!failed) return res.status(409).json({error:'No failed build job was found to repair.'});
+ const logResponse=await fetch('https://api.github.com/repos/'+full+'/actions/jobs/'+failed.id+'/logs',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
+ const logs=logResponse.ok?(await logResponse.text()).slice(-18000):'Build failed; logs unavailable.';
+ const file=await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart');
+ const source=Buffer.from(file.content||'','base64').toString('utf8');
+ const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix compile errors shown in the build log while preserving the app features. Use Flutter SDK and dependencies already in pubspec.yaml only. No markdown fences or explanations.'},{role:'user',content:'Fix this Flutter source based on the failing build log.\nBUILD LOG:\n'+logs+'\nSOURCE FILE:\n'+source}]})});
+ const ai=await aiResponse.json();if(!aiResponse.ok)throw Error(ai.error?.message||'AI could not repair the source.');
+ const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\s*```(?:dart)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+ if(!fixed.includes('void main(')||!fixed.includes('MaterialApp')||fixed.length<200)throw Error('The automatic repair did not produce valid Flutter source.');
+ await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart',{method:'PUT',body:JSON.stringify({message:'Vell AI automatic repair for failed Flutter APK build',content:Buffer.from(fixed).toString('base64'),sha:file.sha,branch:'main'})});
+ res.json({ok:true,message:'Vell AI detected the build failure, repaired the Flutter source, and committed the fix. A new APK build has started automatically.'});
+ }catch(e){res.status(500).json({error:e.message||'Automatic APK repair failed.'})}});
+
 app.get('/api/flutter-apk-zip',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim(),id=String(req.query.artifactId||'').trim();
  if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});

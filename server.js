@@ -52,32 +52,68 @@ app.post('/api/build-and-deploy',async(req,res)=>{let repoUrl='';try{
 
 app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  const prompt=String(req.body.prompt||'').trim();
- if(!prompt)return res.status(400).json({error:'Describe the Flutter app you want to build.'});
+ const previewHtml=typeof req.body.html==='string'?req.body.html.trim():'';
+ if(!prompt)return res.status(400).json({error:'Describe the app you want to build.'});
  if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});
- if(!process.env.GROQ_API_KEY)return res.status(503).json({error:'Add GROQ_API_KEY in Render Environment.'});
+ if(!previewHtml)return res.status(400).json({error:'Build and preview your app first. The APK is created from that exact preview.'});
+ if(previewHtml.length>1500000)return res.status(413).json({error:'This preview is too large to package (maximum 1.5 MB). Simplify the app and try again.'});
+ if(!/^<!doctype html|^<html/i.test(previewHtml))return res.status(400).json({error:'The current preview is not valid HTML. Rebuild the preview and try again.'});
  if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Add GITHUB_TOKEN in Render Environment. It needs permission to create repositories and Actions workflows.'});
- const answer=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.25,max_tokens:9000,messages:[{role:'system',content:'You are an expert Flutter engineer. Return ONLY a complete, compilable Dart source file for lib/main.dart. Do not use markdown fences. Build a polished mobile app based on the user request. Use only Flutter SDK libraries and Material 3; do not import third-party packages, do not use assets, do not reference generated files, and do not include API keys/secrets. Make UI interactions compile and work locally; clearly mark mock data where a real backend is not specified. Include main() and a MaterialApp. Ensure Dart syntax is valid and the app works on Android.'},{role:'user',content:'Create this Flutter Android app: '+prompt}]})});
- const ai=await answer.json();
- if(!answer.ok)throw Object.assign(Error(ai.error?.message||'Flutter code generation failed.'),{status:answer.status});
- const dart=String(ai.choices && ai.choices[0] && ai.choices[0].message && ai.choices[0].message.content || '').replace(/^\s*\x60{3}(?:dart)?\s*/i,'').replace(/\s*\x60{3}\s*$/,'').trim();
- if(!dart.includes('void main(')||!dart.includes('MaterialApp')||dart.length<200)throw Object.assign(Error('AI did not return a valid Flutter entry point. Please try a more specific app description.'),{status:502});
  const slug=prompt.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24)||'flutter-app';
  const repoName=('vell-flutter-'+slug+'-'+Date.now().toString().slice(-6)).slice(0,90);
- const repo=await gh('https://api.github.com/user/repos',{method:'POST',body:JSON.stringify({name:repoName,description:'AI-generated Flutter Android app built with Vell AI Studio',private:false,auto_init:true})});
+ const repo=await gh('https://api.github.com/user/repos',{method:'POST',body:JSON.stringify({name:repoName,description:'Flutter Android app packaged from the exact Vell AI Studio preview',private:false,auto_init:true})});
  repoUrl=repo.html_url;
  const base='https://api.github.com/repos/'+repo.full_name+'/contents/';
- async function putFile(path,content,message){
-  await gh(base+path,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch:repo.default_branch||'main'})});
+ async function putFile(filePath,content,message){
+  await gh(base+filePath,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch:repo.default_branch||'main'})});
  }
- const pubspec='name: '+repoName.replace(/-/g,'_')+'\ndescription: AI-generated Flutter app from Vell AI Studio\npublish_to: "none"\nversion: 1.0.0+1\nenvironment:\n  sdk: ">=3.3.0 <4.0.0"\ndependencies:\n  flutter:\n    sdk: flutter\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n  flutter_lints: ^5.0.0\nflutter:\n  uses-material-design: true\n';
- const workflow='name: Build Flutter Android APK\non:\n  workflow_dispatch:\n  push:\n    branches: [main]\n    paths:\n      - "mobile/**"\n      - ".github/workflows/build-flutter-apk.yml"\npermissions:\n  contents: read\njobs:\n  build-apk:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: subosito/flutter-action@v2\n        with:\n          channel: stable\n          cache: true\n      - name: Create Android Flutter project scaffold\n        run: flutter create --platforms=android --org com.vellai.generated apk_project\n      - name: Install generated app source\n        run: |\n          cp mobile/pubspec.yaml apk_project/pubspec.yaml\n          cp mobile/lib/main.dart apk_project/lib/main.dart\n      - name: Resolve dependencies\n        working-directory: apk_project\n        run: flutter pub get\n      - name: Build release APK\n        working-directory: apk_project\n        run: flutter build apk --release\n      - uses: actions/upload-artifact@v4\n        with:\n          name: flutter-android-apk\n          path: apk_project/build/app/outputs/flutter-apk/app-release.apk\n          if-no-files-found: error\n          retention-days: 14\n';
- await putFile('mobile/pubspec.yaml',pubspec,'Add Flutter app package configuration');
- await putFile('mobile/lib/main.dart',dart,'Generate Flutter app with Vell AI Studio');
- await putFile('.github/workflows/build-flutter-apk.yml',workflow,'Add automatic Flutter APK build workflow');
- res.status(202).json({ok:true,message:'Flutter source generated and uploaded. GitHub Actions is preparing the Android APK. Open the Actions link and download the flutter-android-apk artifact after the run succeeds.',repository:repoUrl,actionsUrl:'https://github.com/'+repo.full_name+'/actions',workflowUrl:'https://github.com/'+repo.full_name+'/actions/workflows/build-flutter-apk.yml',sourceFile:'https://github.com/'+repo.full_name+'/blob/main/mobile/lib/main.dart'});
-}catch(e){res.status(e.status||500).json({error:(e.message||'Could not create Flutter APK project.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
-
-
+ const safeHtml=previewHtml.replace(/<base\b[^>]*>/gi,'');
+ const dart=[
+ "import 'package:flutter/material.dart';",
+ "import 'package:webview_flutter/webview_flutter.dart';",
+ "",
+ "void main() => runApp(const PreviewApp());",
+ "",
+ "class PreviewApp extends StatelessWidget {",
+ "  const PreviewApp({super.key});",
+ "  @override",
+ "  Widget build(BuildContext context) => const MaterialApp(",
+ "    debugShowCheckedModeBanner: false,",
+ "    title: 'Preview app',",
+ "    home: PreviewPage(),",
+ "  );",
+ "}",
+ "",
+ "class PreviewPage extends StatefulWidget {",
+ "  const PreviewPage({super.key});",
+ "  @override",
+ "  State<PreviewPage> createState() => _PreviewPageState();",
+ "}",
+ "",
+ "class _PreviewPageState extends State<PreviewPage> {",
+ "  late final WebViewController controller;",
+ "  @override",
+ "  void initState() {",
+ "    super.initState();",
+ "    controller = WebViewController()",
+ "      ..setJavaScriptMode(JavaScriptMode.unrestricted)",
+ "      ..setBackgroundColor(const Color(0xFFFFFFFF))",
+ "      ..loadFlutterAsset('assets/app.html');",
+ "  }",
+ "  @override",
+ "  Widget build(BuildContext context) => Scaffold(",
+ "    body: WebViewWidget(controller: controller),",
+ "  );",
+ "}"
+ ].join('\n');
+ const pubspec='name: '+repoName.replace(/-/g,'_')+'\ndescription: Exact preview packaged as a Flutter Android app\npublish_to: "none"\nversion: 1.0.0+1\nenvironment:\n  sdk: ">=3.3.0 <4.0.0"\ndependencies:\n  flutter:\n    sdk: flutter\n  webview_flutter: ^4.10.0\ndev_dependencies:\n  flutter_test:\n    sdk: flutter\n  flutter_lints: ^5.0.0\nflutter:\n  uses-material-design: true\n  assets:\n    - assets/app.html\n';
+ const workflow='name: Build Flutter Android APK\non:\n  workflow_dispatch:\n  push:\n    branches: [main]\n    paths:\n      - "mobile/**"\n      - ".github/workflows/build-flutter-apk.yml"\npermissions:\n  contents: read\njobs:\n  build-apk:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: subosito/flutter-action@v2\n        with:\n          channel: stable\n          cache: true\n      - name: Create Android Flutter project scaffold\n        run: flutter create --platforms=android --org com.vellai.generated apk_project\n      - name: Install preview and Flutter source\n        run: |\n          cp mobile/pubspec.yaml apk_project/pubspec.yaml\n          cp mobile/lib/main.dart apk_project/lib/main.dart\n          mkdir -p apk_project/assets\n          cp mobile/assets/app.html apk_project/assets/app.html\n      - name: Resolve dependencies\n        working-directory: apk_project\n        run: flutter pub get\n      - name: Build release APK\n        working-directory: apk_project\n        run: flutter build apk --release\n      - uses: actions/upload-artifact@v4\n        with:\n          name: flutter-android-apk\n          path: apk_project/build/app/outputs/flutter-apk/app-release.apk\n          if-no-files-found: error\n          retention-days: 14\n';
+ await putFile('mobile/pubspec.yaml',pubspec,'Configure preview-based Flutter APK');
+ await putFile('mobile/lib/main.dart',dart,'Package exact preview in Flutter WebView');
+ await putFile('mobile/assets/app.html',safeHtml,'Embed exact generated preview in Android app');
+ await putFile('.github/workflows/build-flutter-apk.yml',workflow,'Build APK containing the exact app preview');
+ res.status(202).json({ok:true,message:'The exact preview has been packaged into a Flutter Android app. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+repo.full_name+'/actions',workflowUrl:'https://github.com/'+repo.full_name+'/actions/workflows/build-flutter-apk.yml',sourceFile:'https://github.com/'+repo.full_name+'/blob/main/mobile/lib/main.dart'});
+}catch(e){res.status(e.status||500).json({error:(e.message||'Could not create preview-based Flutter APK.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
 app.get('/api/flutter-build-status',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim();
  if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});

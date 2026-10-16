@@ -217,4 +217,62 @@ document.querySelectorAll('[data-refine]').forEach(function(b){b.addEventListene
   if(stage==='review'){const base=document.getElementById('aiBuildPrompt').value.trim();const details=questions.filter(q=>answers[q[0]]).map(q=>q[1]+' '+answers[q[0]]).join('\n');const chosenName=answers.appName||((base.match(/\b(?:called|named|name\s*(?:is|:|=)|titled)\s+["'“]?([a-z0-9][a-z0-9 _-]{0,39})/i)||[])[1]||'').trim().replace(/["'“”]+$/,'');const namingRule=chosenName?'\n\nAPP NAME REQUIREMENT: The official app and website name is "'+chosenName+'". Use this exact name consistently in the website title, app header, branding, generated Android app name, and project identity. Use a matching URL slug "'+chosenName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'" where deployment supports it. Do not claim a URL is live until it has actually been deployed and verified.':'\n\nIf the app name is not specified, ask the user what they would like the name to be before generating.';const finalPrompt=base+namingRule+'\n\nApp planning answers:\n'+details+'\n\nBuild a polished, responsive, usable first version. Implement the core flows and interactions, realistic sample content, accessible controls, and mobile layouts. Clearly label any feature that requires external credentials or backend setup; do not pretend demo storage or payments are production-ready.';panel.hidden=true;document.getElementById('aiBuildStatus').textContent='Building your app from your answers…';document.getElementById('aiBuildScreen').classList.remove('show');document.getElementById('prompt').value='';await window.vellBuildFromInterview(finalPrompt);}
  };
 })();
-</script></body></html>
+</script>
+<style>
+.vell-history-btn{border:1px solid #30466b!important;background:#101d33!important;color:#dce8ff!important;border-radius:10px;padding:9px 12px;font-weight:650}
+.vell-history-overlay{position:fixed;inset:0;z-index:1000;background:#030712ef;backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:16px}.vell-history-overlay.open{display:flex}
+.vell-history-dialog{width:min(900px,100%);max-height:92dvh;overflow:auto;background:#0b1324;border:1px solid #263957;border-radius:20px;box-shadow:0 24px 90px #0009;color:#eef4ff}
+.vell-history-head{position:sticky;top:0;background:#0b1324ed;backdrop-filter:blur(12px);padding:17px 20px;border-bottom:1px solid #263957;display:flex;align-items:center;gap:12px;z-index:2}.vell-history-head h2{font-size:18px;margin:0}.vell-history-head p{font-size:12px;color:#9eacc5;margin:3px 0 0}
+.vell-history-close{margin-left:auto;border:1px solid #33435f;background:#131f34;color:#fff;border-radius:9px;padding:8px 12px}.vell-history-list{padding:14px;display:grid;gap:10px}
+.vell-history-item{border:1px solid #243652;background:#101b2e;border-radius:14px;padding:14px;min-width:0}.vell-history-item h3{font-size:14px;margin:0 0 7px;overflow-wrap:anywhere}.vell-history-meta{font-size:11px;color:#93a5c5;margin-bottom:8px}.vell-history-prompt{color:#c3cee3;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:64px;overflow:hidden}
+.vell-history-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.vell-history-actions button{border:1px solid #344765;background:#172640;color:#edf4ff;border-radius:9px;padding:8px 10px}.vell-history-actions .primary{background:#8fb6ff;color:#081326;border-color:#8fb6ff;font-weight:750}
+.vell-history-empty{padding:32px 18px;text-align:center;color:#a8b7d0}.vell-history-preview{width:100%;height:min(72dvh,760px);border:0;background:white;display:none}.vell-history-preview.show{display:block}
+@media(max-width:560px){.vell-history-dialog{border-radius:15px}.vell-history-head{padding:14px}.vell-history-list{padding:10px}.vell-history-btn{padding:8px!important}}
+</style>
+<script>
+/* Vell AI project history is stored locally on this device. */
+(function(){
+ const KEY='vell-history-v1',MAX=8;
+ const read=()=>{try{const v=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}};
+ const write=items=>{try{localStorage.setItem(KEY,JSON.stringify(items.slice(0,MAX)));return true}catch(_){return false}};
+ const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const overlay=document.createElement('div');overlay.className='vell-history-overlay';overlay.id='vellHistoryOverlay';
+ overlay.innerHTML='<section class="vell-history-dialog" role="dialog" aria-modal="true" aria-labelledby="vellHistoryTitle"><header class="vell-history-head"><div><h2 id="vellHistoryTitle">Project history</h2><p>Saved privately in this browser on this device.</p></div><button class="vell-history-close" id="vellHistoryClose" type="button">Close ✕</button></header><iframe class="vell-history-preview" id="vellHistoryPreview" title="Saved project preview" sandbox="allow-scripts allow-forms"></iframe><div class="vell-history-list" id="vellHistoryList"></div></section>';
+ document.body.appendChild(overlay);
+ const topRight=document.querySelector('.topright')||document.querySelector('.top');
+ if(topRight){const b=document.createElement('button');b.type='button';b.className='vell-history-btn';b.textContent='History';b.setAttribute('aria-label','Open saved project history');topRight.insertBefore(b,topRight.firstChild);b.addEventListener('click',show)}
+ function show(){overlay.classList.add('open');render();document.getElementById('vellHistoryClose').focus()}
+ function hide(){overlay.classList.remove('open');const fr=document.getElementById('vellHistoryPreview');fr.classList.remove('show');fr.srcdoc=''}
+ document.getElementById('vellHistoryClose').addEventListener('click',hide);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)hide()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('open'))hide()});
+ function render(){
+  const list=document.getElementById('vellHistoryList'),items=read();list.innerHTML='';
+  if(!items.length){list.innerHTML='<div class="vell-history-empty"><strong>No projects saved yet</strong><p>Generate a website or app and it will appear here automatically.</p></div>';return}
+  items.forEach(item=>{const card=document.createElement('article');card.className='vell-history-item';
+   card.innerHTML='<h3>'+esc(item.title||'Untitled project')+'</h3><div class="vell-history-meta">'+esc(new Date(item.time||Date.now()).toLocaleString())+' · '+(item.html?'Preview available':'Prompt saved')+'</div><div class="vell-history-prompt">'+esc(item.prompt)+'</div><div class="vell-history-actions">'+(item.html?'<button type="button" class="primary" data-action="preview">Open preview</button>':'')+'<button type="button" data-action="use">Use prompt</button><button type="button" data-action="delete">Delete</button></div>';
+   card.querySelectorAll('button').forEach(btn=>btn.addEventListener('click',()=>{const action=btn.dataset.action;
+    if(action==='preview'&&item.html){const fr=document.getElementById('vellHistoryPreview');fr.srcdoc=item.html;fr.classList.add('show');fr.scrollIntoView({behavior:'smooth',block:'nearest'})}
+    if(action==='use'){const p=document.getElementById('prompt'),ap=document.getElementById('aiBuildPrompt');if(p){p.value=item.prompt||'';p.focus();hide();p.scrollIntoView({behavior:'smooth',block:'center'})}else if(ap){ap.value=item.prompt||'';hide()}}
+    if(action==='delete'){write(read().filter(x=>x.id!==item.id));render()}
+   }));list.appendChild(card)
+  })
+ }
+ function save(prompt,data,kind){
+  if(!prompt)return;const items=read(),html=typeof data.html==='string'?data.html:'';
+  items.unshift({id:String(Date.now())+'-'+Math.random().toString(36).slice(2,7),title:(prompt.split(/[\n.!?]/)[0]||'New project').trim().slice(0,64),prompt:String(prompt).slice(0,8000),time:Date.now(),kind,html:html.length<=140000?html:''});
+  if(!write(items)){items.forEach(x=>x.html='');while(items.length>4)items.pop();write(items)}
+  if(overlay.classList.contains('open'))render()
+ }
+ const originalFetch=window.fetch.bind(window);
+ window.fetch=async function(input,init){
+  const url=typeof input==='string'?input:(input&&input.url)||'';let body={};try{body=JSON.parse(init&&init.body||'{}')}catch(_){}
+  const response=await originalFetch(input,init);
+  if(response.ok&&/^\/api\/(generate|build-and-deploy|build-flutter-apk)(?:\?|$)/.test(url)){
+   try{const data=await response.clone().json();if(data&&(data.html||data.repository||data.actionsUrl))save(body.prompt||body.description||'AI project',data,url.split('?')[0].slice(5))}catch(_){}
+  }return response
+ };
+ window.addEventListener('storage',e=>{if(e.key===KEY&&overlay.classList.contains('open'))render()});
+})();
+</script>
+</body></html>

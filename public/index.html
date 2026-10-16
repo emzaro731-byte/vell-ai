@@ -99,6 +99,9 @@ document.querySelectorAll('[data-refine]').forEach(function(b){b.addEventListene
  const originalButton=document.getElementById('aiBuildStart');let stage='intro',questions=[],answers={},index=0;
  function getQuestions(p){
   const s=p.toLowerCase();let q=[];
+  /* If the user did not provide a clear app name, ask for one before planning the build. */
+  const hasAppName=/\b(?:called|named|name\s*(?:is|:|=)|titled)\s+["'“]?([a-z0-9][a-z0-9 _-]{0,39})/i.test(p);
+  if(!hasAppName)q.push(['appName','What would you like the name of your app to be?',[]]);
   if(/shop|store|ecommerce|e-commerce|sell|marketplace|product/.test(s))q.push(['storeType','What kind of store are you building?',['Online shop','Multi-vendor marketplace','Booking + services','Digital products']]);
   else if(/school|student|cbt|exam|quiz|tutor|course|learning/.test(s))q.push(['learningType','What is the main learning feature?',['Past questions and timed exams','Courses and lessons','AI tutor and chat','School management']]);
   else if(/chat|message|social|community|whatsapp|friend/.test(s))q.push(['socialType','What should users do most?',['Private messaging','Groups and communities','Share posts and media','Messaging + voice/video']]);
@@ -118,7 +121,11 @@ document.querySelectorAll('[data-refine]').forEach(function(b){b.addEventListene
   const fields=document.getElementById('interviewFields'),progress=document.getElementById('interviewProgress');
   if(index>=questions.length){stage='review';fields.innerHTML='<h3>Ready to build?</h3><p class="interview-intro">Review your choices. Vell AI will combine them with your original description.</p>';document.getElementById('interviewSummary').hidden=false;document.getElementById('interviewSummary').textContent=questions.map(x=>x[1]+' '+(answers[x[0]]||'No preference')).join(' · ');document.getElementById('interviewNext').textContent='Build my app ↗';progress.style.width='100%';return}
   stage='questions';const q=questions[index];progress.style.width=Math.round(index/questions.length*100)+'%';
-  fields.innerHTML='<label class="interview-field"><span>'+q[1]+'</span><select id="interviewAnswer"><option value="">Choose an option (optional)</option>'+q[2].map(v=>'<option>'+v+'</option>').join('')+'</select></label><p class="interview-intro">Question '+(index+1)+' of '+questions.length+'</p>';
+  if(q[0]==='appName'){
+   fields.innerHTML='<label class="interview-field"><span>'+q[1]+'</span><input id="interviewAnswer" type="text" maxlength="40" placeholder="e.g. VRL" autocomplete="off" style="display:block;width:100%;margin-top:10px;padding:13px;border:1px solid #e5e1da;border-radius:10px;background:#fff;color:#222;box-sizing:border-box"></label><p class="interview-intro">Question '+(index+1)+' of '+questions.length+'</p>';
+  }else{
+   fields.innerHTML='<label class="interview-field"><span>'+q[1]+'</span><select id="interviewAnswer"><option value="">Choose an option (optional)</option>'+q[2].map(v=>'<option>'+v+'</option>').join('')+'</select></label><p class="interview-intro">Question '+(index+1)+' of '+questions.length+'</p>';
+  }
   document.getElementById('interviewAnswer').value=answers[q[0]]||'';
   document.getElementById('interviewSummary').hidden=true;
   document.getElementById('interviewNext').textContent=index===questions.length-1?'Review choices →':'Next question →';
@@ -127,8 +134,8 @@ document.querySelectorAll('[data-refine]').forEach(function(b){b.addEventListene
  originalButton.onclick=begin;
  document.getElementById('interviewBack').onclick=()=>{if(stage==='review'){index=questions.length-1;renderQuestion();return}if(index>0){index--;renderQuestion();return}panel.hidden=true;originalButton.style.display='';};
  document.getElementById('interviewNext').onclick=async()=>{
-  if(stage==='questions'){const q=questions[index],v=document.getElementById('interviewAnswer');answers[q[0]]=v?v.value:'';index++;renderQuestion();return}
-  if(stage==='review'){const base=document.getElementById('aiBuildPrompt').value.trim();const details=questions.filter(q=>answers[q[0]]).map(q=>q[1]+' '+answers[q[0]]).join('\n');const finalPrompt=base+'\n\nApp planning answers:\n'+details+'\n\nBuild a polished, responsive, usable first version. Implement the core flows and interactions, realistic sample content, accessible controls, and mobile layouts. Clearly label any feature that requires external credentials or backend setup; do not pretend demo storage or payments are production-ready.';panel.hidden=true;document.getElementById('aiBuildStatus').textContent='Building your app from your answers…';document.getElementById('aiBuildScreen').classList.remove('show');document.getElementById('prompt').value='';await window.vellBuildFromInterview(finalPrompt);}
+  if(stage==='questions'){const q=questions[index],v=document.getElementById('interviewAnswer');answers[q[0]]=v?v.value.trim():'';if(q[0]==='appName'&&!answers[q[0]]){v.focus();v.placeholder='Please enter a name, e.g. VRL';return}index++;renderQuestion();return}
+  if(stage==='review'){const base=document.getElementById('aiBuildPrompt').value.trim();const details=questions.filter(q=>answers[q[0]]).map(q=>q[1]+' '+answers[q[0]]).join('\n');const chosenName=answers.appName||((base.match(/\b(?:called|named|name\s*(?:is|:|=)|titled)\s+["'“]?([a-z0-9][a-z0-9 _-]{0,39})/i)||[])[1]||'').trim().replace(/["'“”]+$/,'');const namingRule=chosenName?'\n\nAPP NAME REQUIREMENT: The official app and website name is "'+chosenName+'". Use this exact name consistently in the website title, app header, branding, generated Android app name, and project identity. Use a matching URL slug "'+chosenName.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')+'" where deployment supports it. Do not claim a URL is live until it has actually been deployed and verified.':'\n\nIf the app name is not specified, ask the user what they would like the name to be before generating.';const finalPrompt=base+namingRule+'\n\nApp planning answers:\n'+details+'\n\nBuild a polished, responsive, usable first version. Implement the core flows and interactions, realistic sample content, accessible controls, and mobile layouts. Clearly label any feature that requires external credentials or backend setup; do not pretend demo storage or payments are production-ready.';panel.hidden=true;document.getElementById('aiBuildStatus').textContent='Building your app from your answers…';document.getElementById('aiBuildScreen').classList.remove('show');document.getElementById('prompt').value='';await window.vellBuildFromInterview(finalPrompt);}
  };
 })();
 </script></body></html>

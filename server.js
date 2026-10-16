@@ -59,13 +59,16 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  if(previewHtml.length>1500000)return res.status(413).json({error:'This preview is too large to package (maximum 1.5 MB). Simplify the app and try again.'});
  if(!/^<!doctype html|^<html/i.test(previewHtml))return res.status(400).json({error:'The current preview is not valid HTML. Rebuild the preview and try again.'});
  if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Add GITHUB_TOKEN in Render Environment. It needs permission to create repositories and Actions workflows.'});
- const slug=prompt.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24)||'flutter-app';
- const repoName=('vell-flutter-'+slug+'-'+Date.now().toString().slice(-6)).slice(0,90);
- const repo=await gh('https://api.github.com/user/repos',{method:'POST',body:JSON.stringify({name:repoName,description:'Flutter Android app packaged from the exact Vell AI Studio preview',private:false,auto_init:true})});
- repoUrl=repo.html_url;
- const base='https://api.github.com/repos/'+repo.full_name+'/contents/';
+ const fullRepo=process.env.GITHUB_REPO||'emzaro731-byte/vell-ai';
+ const repoName=fullRepo.split('/')[1];
+ const branch='apk-preview-'+Date.now().toString(36);
+ const repo=await gh('https://api.github.com/repos/'+fullRepo);
+ const baseSha=(await gh('https://api.github.com/repos/'+fullRepo+'/git/ref/heads/main')).object.sha;
+ await gh('https://api.github.com/repos/'+fullRepo+'/git/refs',{method:'POST',body:JSON.stringify({ref:'refs/heads/'+branch,sha:baseSha})});
+ repoUrl='https://github.com/'+fullRepo+'/tree/'+branch;
+ const base='https://api.github.com/repos/'+fullRepo+'/contents/';
  async function putFile(filePath,content,message){
-  await gh(base+filePath,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch:repo.default_branch||'main'})});
+  await gh(base+filePath,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch})});
  }
  const safeHtml=previewHtml.replace(/<base\b[^>]*>/gi,'');
  const dart=[
@@ -111,8 +114,7 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  await putFile('mobile/pubspec.yaml',pubspec,'Configure preview-based Flutter APK');
  await putFile('mobile/lib/main.dart',dart,'Package exact preview in Flutter WebView');
  await putFile('mobile/assets/app.html',safeHtml,'Embed exact generated preview in Android app');
- await putFile('.github/workflows/build-flutter-apk.yml',workflow,'Build APK containing the exact app preview');
- res.status(202).json({ok:true,message:'The exact preview has been packaged into a Flutter Android app. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+repo.full_name+'/actions',workflowUrl:'https://github.com/'+repo.full_name+'/actions/workflows/build-flutter-apk.yml',sourceFile:'https://github.com/'+repo.full_name+'/blob/main/mobile/lib/main.dart'});
+ res.status(202).json({ok:true,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
 }catch(e){res.status(e.status||500).json({error:(e.message||'Could not create preview-based Flutter APK.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
 app.get('/api/flutter-build-status',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim();

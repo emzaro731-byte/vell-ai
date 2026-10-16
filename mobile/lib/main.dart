@@ -28,7 +28,7 @@ class _StudioHomeState extends State<StudioHome> {
   final prompt = TextEditingController();
   bool busy = false;
   String status = 'Your next idea starts here.';
-  String? html, siteUrl, repoUrl;
+  String? html, siteUrl, repoUrl, flutterRepoUrl, actionsUrl;
   int tab = 0;
   final templates = const [
     ('Online store', Icons.shopping_bag_outlined, 'Build a premium online store with product cards, search, cart, and mobile checkout UI.'),
@@ -66,6 +66,18 @@ class _StudioHomeState extends State<StudioHome> {
     await perform(() async {
       final data = await callApi('/api/build-and-deploy', {'prompt': prompt.text.trim()});
       setState(() { html = data['html']?.toString(); siteUrl = data['siteUrl']?.toString(); repoUrl = data['repository']?.toString(); status = data['message']?.toString() ?? 'Build started.'; tab = 1; });
+    });
+  }
+  Future<void> buildFlutterApk() async {
+    if (prompt.text.trim().isEmpty) { setState(() => status = 'Describe the Flutter app you want to build first.'); return; }
+    await perform(() async {
+      final data = await callApi('/api/build-flutter-apk', {'prompt': prompt.text.trim()});
+      setState(() {
+        flutterRepoUrl = data['repository']?.toString();
+        actionsUrl = data['actionsUrl']?.toString();
+        status = data['message']?.toString() ?? 'Flutter source created. APK build is starting on GitHub Actions.';
+        tab = 1;
+      });
     });
   }
   Future<void> retrieveUrl() async {
@@ -107,10 +119,21 @@ class _StudioHomeState extends State<StudioHome> {
     const SizedBox(height: 10), Row(children: [
       Expanded(child: FilledButton.icon(onPressed: busy ? null : generate, icon: const Icon(Icons.auto_awesome), label: const Text('Generate preview'))),
       const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: busy ? null : buildDeploy, icon: const Icon(Icons.rocket_launch_outlined), label: const Text('Build & deploy')))]),
+    const SizedBox(height: 10),
+    SizedBox(width: double.infinity, child: FilledButton.icon(
+      onPressed: busy ? null : buildFlutterApk,
+      icon: const Icon(Icons.android),
+      label: const Text('Build Flutter APK'),
+      style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E8B57), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15)),
+    )),
     if (busy) const Padding(padding: EdgeInsets.only(top: 14), child: LinearProgressIndicator()),
     const SizedBox(height: 14), Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: const Color(0xFF111827), borderRadius: BorderRadius.circular(14)), child: Text(status, style: const TextStyle(color: Color(0xFFC3CEE2), fontSize: 12, height: 1.45))),
     if (siteUrl != null && siteUrl!.startsWith('http')) linkCard('Live website', siteUrl!),
     if (repoUrl != null && repoUrl!.startsWith('http')) linkCard('GitHub repository', repoUrl!),
+    if (flutterRepoUrl != null && flutterRepoUrl!.startsWith('http')) linkCard('Flutter APK source repository', flutterRepoUrl!),
+    if (actionsUrl != null && actionsUrl!.startsWith('http')) InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!))), child: linkCard('Open APK build status on GitHub Actions', actionsUrl!)),
+    if (flutterRepoUrl != null && flutterRepoUrl!.startsWith('http')) linkCard('Flutter APK source repository', flutterRepoUrl!),
+    if (actionsUrl != null && actionsUrl!.startsWith('http')) InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!))), child: linkCard('Open APK build status on GitHub Actions', actionsUrl!)),
     const SizedBox(height: 24), const Text('Start with a template', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
     const SizedBox(height: 12), GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: templates.length, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.2), itemBuilder: (context, i) {
       final item = templates[i];
@@ -142,4 +165,26 @@ class _PreviewPageState extends State<PreviewPage> {
   void initState() { super.initState(); controller = WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted)..setBackgroundColor(const Color(0xFFFFFFFF))..loadHtmlString(widget.html); }
   @override
   Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Live preview'), actions: [IconButton(onPressed: () => controller.reload(), icon: const Icon(Icons.refresh))]), body: WebViewWidget(controller: controller));
+}
+
+class UrlPage extends StatefulWidget {
+  final String url;
+  const UrlPage({super.key, required this.url});
+  @override
+  State<UrlPage> createState() => _UrlPageState();
+}
+class _UrlPageState extends State<UrlPage> {
+  late final WebViewController controller;
+  @override
+  void initState() {
+    super.initState();
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..loadRequest(Uri.parse(widget.url));
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('GitHub APK build status')),
+    body: WebViewWidget(controller: controller),
+  );
 }

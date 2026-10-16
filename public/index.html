@@ -160,6 +160,56 @@ aside{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 @media(min-width:621px) and (max-width:900px){.layout{grid-template-columns:205px minmax(0,1fr)}.content{padding-left:20px;padding-right:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 
+</style><style id="vell-interface-refresh">
+/* Vell AI Studio interface refresh */
+:root{--bg:#090b10;--panel:#11141b;--panel2:#181c25;--line:#292e39;--text:#f3f4f6;--muted:#a0a6b4;--accent:#10a37f;--blue:#8bdcc4}
+body{background:#090b10;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+.top{height:62px;padding:0 20px;background:#0b0d12ed;border-color:#242832}
+.mark{background:#10a37f;color:#06140f;border-radius:9px}
+.layout{grid-template-columns:245px minmax(0,1fr)}
+aside{background:#0c0e13;border-color:#242832;padding:16px 12px}
+.sidebtn{border-radius:10px;color:#c8ccd5;padding:11px 12px}
+.sidebtn:hover,.sidebtn.active{background:#1a1d25;border-color:#303540}
+.label{color:#747d8c;letter-spacing:1.2px}
+.project:hover{background:#1a1d25}
+.profile{border-color:#292e39}
+.avatar{background:#18352e;color:#a9f0d8}
+.toolbar{border-color:#242832;color:#9299a8}
+.content{max-width:1120px;padding:38px 30px 76px}
+.hero{padding:45px 0 8px}
+.hero:before{background:radial-gradient(ellipse,#123d3544,transparent 70%);width:min(700px,100%)}
+.eyebrow{border-color:#235747;background:#10251f;color:#a8ead4;letter-spacing:.7px}
+.dot{background:#10a37f;box-shadow:0 0 12px #10a37f77}
+.hero h1{font-size:clamp(34px,4.8vw,56px);letter-spacing:-2.4px}
+.hero h1 span{background:linear-gradient(100deg,#f3f4f6,#a9e7d2 55%,#10a37f);-webkit-background-clip:text;background-clip:text}
+.hero p{color:#9ca3af;max-width:560px}
+.composer{background:#15171c;border-color:#353a44;border-radius:23px;padding:15px;box-shadow:0 18px 55px #0005}
+.composer:focus-within{border-color:#10a37f;box-shadow:0 0 0 3px #10a37f20,0 18px 55px #0005}
+.composer textarea{font-size:15px;min-height:95px;padding:8px}
+.composefoot{border-color:#2c3038}
+.build{background:#10a37f;color:#06140f;border-radius:12px;padding:11px 16px}
+.build:hover{filter:brightness(1.1)}
+.btn.primary{background:#10a37f;color:#06140f;border-color:#10a37f}
+.quick button{background:#11151c;border-color:#2b313c;color:#c5cbd6;padding:8px 13px}
+.quick button:hover{border-color:#10a37f;background:#14231f}
+.section{margin-top:46px}
+.section h2{font-size:17px}
+.cards{gap:15px}
+.card{border-color:#2a303b;background:#11141a;border-radius:16px}
+.card:hover{border-color:#397d68;transform:translateY(-2px)}
+.art{background:radial-gradient(ellipse at 80% 0%,#245b50,transparent 60%),linear-gradient(130deg,#172822,#0d1118)}
+.art.store{background:radial-gradient(ellipse at 80% 0%,#51634b,transparent 60%),linear-gradient(130deg,#22291f,#0d1118)}
+.art.mobile{background:radial-gradient(ellipse at 80% 0%,#3c6e75,transparent 60%),linear-gradient(130deg,#162b34,#0d1118)}
+.mock{background:#0e1313d9}
+.minicards i{background:linear-gradient(140deg,#285d50,#172c28)}
+.cardinfo{padding:15px}
+.cardinfo b{font-size:14px}
+.vh-dialog{background:#11141b!important;border-color:#303640!important}
+.vh-head{background:#11141b!important;border-color:#292e39!important}
+.vh-item{background:#171a21!important;border-color:#303640!important}
+.vh-actions .vh-primary{background:#10a37f!important;color:#06140f!important;border-color:#10a37f!important}
+.vh-actions button{background:#20252e!important;border-color:#3a414e!important}
+@media(max-width:760px){.top{height:58px;padding:0 13px}.layout{grid-template-columns:minmax(0,1fr)}.layout>aside{display:none}.content{padding:25px 16px 52px}.hero{padding:30px 0 6px}.hero h1{letter-spacing:-1.5px}.composer{border-radius:19px;padding:12px}.cards{grid-template-columns:1fr;gap:11px}.art{height:105px}.toolbar{padding:0 16px}.section{margin-top:36px}.topright{gap:6px}.pill{display:none}}
 </style></head><body><div class="app"><header class="top"><button class="btn mobilemenu" id="menu" aria-label="Open menu">☰</button><div class="brand"><div class="mark">✳</div><span>Vell AI</span><span class="beta">STUDIO</span></div><div class="topright"><span class="pill">✦ AI builder</span><button class="btn" id="sites">My live sites ↗</button><button class="btn primary" id="newProject">＋ New app</button></div></header><div class="layout"><aside id="sidebar"><button class="sidebtn active" id="homeNav"><span class="sicon">⌂</span> Home</button><button class="sidebtn" id="buildNav"><span class="sicon">✳</span> Create with AI</button><button class="sidebtn" id="previewNav"><span class="sicon">▣</span> Preview</button><button class="sidebtn" id="deployNav"><span class="sicon">↗</span> Publish & deploy</button><div class="label">Workspace</div><div class="project" id="createSide">＋ Create a project</div><div class="label">Recent projects</div><div class="project" data-p="Build a sleek personal portfolio with projects, skills and contact form.">Portfolio website</div><div class="project" data-p="Build a responsive ecommerce store with product cards, cart and WhatsApp ordering.">Online store</div><div class="project" data-p="Build a business dashboard with analytics, activity and settings.">Business dashboard</div><div class="profile"><div class="avatar">V</div><div><b>Vell AI Studio</b><small>Build smarter · Ship faster</small></div></div></aside><main class="main"><div class="toolbar">Workspace&nbsp; / &nbsp;<strong id="crumb">Home</strong></div><div class="content" id="discovery"><section class="hero"><span class="eyebrow"><i class="dot"></i> YOUR AI PRODUCT STUDIO</span><h1>What will you build <span>next?</span></h1><p>Turn your idea into an app or website. Describe what you need and Vell AI will help you build it.</p><div class="composer"><textarea id="prompt" rows="2" placeholder="Describe the app you want to create…"></textarea><div class="composefoot"><button class="btn" id="attach">＋</button><span class="hint"></span><span class="spacer"></span><button class="build" id="generate">Build ↗</button></div></div><div class="quick"><button data-p="Build a responsive portfolio website with project gallery, skills, about section and contact form.">✦ Portfolio</button><button data-p="Create a premium Nigerian online store with products, search, categories, naira prices and WhatsApp ordering.">▧ Online store</button><button data-p="Build a SaaS dashboard with analytics cards, charts, activity feed and admin settings.">▦ Dashboard</button><button data-p="Create a mobile-first AI assistant web app with chat history, settings and a clean chat interface.">✳ AI assistant</button></div></section><div class="section"><div><h2>Explore templates</h2><p>Start with a template or describe your own idea.</p></div><span class="muted">Explore templates ↘</span></div><div class="cards"><button class="card" data-p="Create a polished SaaS analytics dashboard with dark navigation, revenue metrics, activity chart, recent transactions, responsive layout and working date filters."><div class="art"><div class="mock"><div class="mockside"></div><div class="mockmain"><div class="line"></div><div class="line short"></div><div class="minicards"><i></i><i></i><i></i></div><div class="line"></div></div></div></div><div class="cardinfo"><b>Analytics dashboard</b><span>Metrics, charts and admin tools</span></div></button><button class="card" data-p="Create a premium ecommerce storefront for a Nigerian fashion brand, with hero banner, product grid, category filters, naira prices, cart interactions and WhatsApp order links."><div class="art store"><div class="mock"><div class="mockmain"><div class="line"></div><div class="line short"></div><div class="minicards"><i></i><i></i><i></i></div></div></div></div><div class="cardinfo"><b>Online store</b><span>Products, shopping and orders</span></div></button><button class="card" data-p="Build a mobile-first productivity app with task cards, progress indicators, filters, add-task form, editable tasks and polished empty states."><div class="art mobile"><div class="mock" style="max-width:110px;margin:auto"><div class="mockmain"><div class="line"></div><div class="minicards"><i></i><i></i></div><div class="line short"></div><div class="minicards"><i></i><i></i></div></div></div></div><div class="cardinfo"><b>Productivity app</b><span>Tasks, workflows and progress</span></div></button></div><section class="work" id="workarea"><button class="btn screenback" id="backHome">← Back to home</button><div class="section" style="margin-top:10px"><div><h2 id="worktitle">Your app workspace</h2><p>Chat with your AI builder, review your app, then publish when it is ready.</p></div></div><div class="chat-label">Build conversation</div><div class="messages" id="messages"></div><div class="chat-suggestions" id="chatSuggestions"><button data-refine="Make the design more premium with better spacing, typography and responsive layouts.">✦ Improve design</button><button data-refine="Add login and sign-up screens with polished form validation.">＋ Add authentication</button><button data-refine="Make every button and form interactive and improve mobile usability.">⚡ Add functionality</button><button data-refine="Add a dashboard with useful analytics cards and navigation.">▦ Add dashboard</button></div><div class="actions preview-actions"><button class="btn primary" id="previewButton" type="button" disabled>▶ Preview app</button><span class="muted">Build an app first, then preview it here.</span></div>
 <div id="previewPlaceholder" class="status">Your preview will open in full screen.</div>
 <iframe id="frame"

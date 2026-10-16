@@ -171,12 +171,12 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  await putFile('mobile/lib/main.dart',dart,'Package exact preview in Flutter WebView');
  await putFile('mobile/assets/app.html',safeHtml,'Embed exact generated preview in Android app');
  await gh('https://api.github.com/repos/'+fullRepo+'/actions/workflows/flutter-android.yml/dispatches',{method:'POST',body:JSON.stringify({ref:branch})});
- res.status(202).json({ok:true,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
+ res.status(202).json({ok:true,branch,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
 }catch(e){res.status(e.status||500).json({error:(e.message||'Could not create preview-based Flutter APK.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
 app.get('/api/flutter-build-status',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim();
  if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
- const data=await gh('https://api.github.com/repos/'+full+'/actions/runs?per_page=1');
+ const branch=String(req.query.branch||'').trim();const data=await gh('https://api.github.com/repos/'+full+'/actions/runs?per_page=1'+(branch?'&branch='+encodeURIComponent(branch):''));
  const run=(data.workflow_runs||[])[0];
  if(!run)return res.json({ok:true,state:'queued',message:'Waiting for GitHub Actions to start the build.'});
  const artifacts=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/artifacts');

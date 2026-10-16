@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 bool _hasExplicitAppName(String text) =>
@@ -451,7 +452,7 @@ class _FlutterBuildPageState extends State<FlutterBuildPage> {
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: repository!)))),
           if (actionsUrl != null && actionsUrl!.startsWith('http'))
             resultLink('Download APK ZIP', actionsUrl!,
-              () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!)))),
+              () => launchUrl(Uri.parse(actionsUrl!), mode: LaunchMode.externalApplication)),
         ],
       ),
     ),

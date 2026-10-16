@@ -78,7 +78,7 @@ app.post('/api/build-and-deploy',async(req,res)=>{let repoUrl='';try{
  const prompt=String(req.body.prompt||'').trim();if(!prompt)return res.status(400).json({error:'Describe the app you want first.'});if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});
  if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Add GITHUB_TOKEN in Render Environment. It must be allowed to create repositories and push contents.'});
  if(!process.env.RENDER_API_KEY||!process.env.RENDER_OWNER_ID)return res.status(503).json({error:'Add RENDER_API_KEY and RENDER_OWNER_ID in Render Environment.'});
- const html=await generateHtml(prompt);
+ const html=await generateHtml(prompt,String(req.body.existingHtml||'').slice(0,140000));
  const slug=prompt.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24)||'ai-app';
  const repoName=('vell-'+slug+'-'+Date.now().toString().slice(-7)).slice(0,90);
  const repo=await gh('https://api.github.com/user/repos',{method:'POST',body:JSON.stringify({name:repoName,description:'AI-generated website built with Vell AI Studio',private:false,auto_init:true})});

@@ -1,0 +1,73 @@
+name: Build Vell AI Small APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/small-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build optimized APKs by CPU architecture
+        run: |
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols --tree-shake-icons --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
+
+      - name: Report APK sizes
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(build/app/outputs/flutter-apk/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No APK files were generated."
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            bytes=$(stat -c%s "$file")
+            mib=$(awk -v b="$bytes" 'BEGIN { printf "%.2f", b/1048576 }')
+            echo "$file: $mib MiB ($bytes bytes)"
+          done
+
+      - name: Package APKs and debug symbols
+        run: |
+          mkdir -p release-package
+          cp build/app/outputs/flutter-apk/*.apk release-package/
+          if [ -d build/symbols ]; then cp -r build/symbols release-package/; fi
+          cd release-package
+          zip -r ../vell-ai-small-apks.zip .
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: vell-ai-small-apks
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            vell-ai-small-apks.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -1,4 +1,4 @@
-name: Build Vell AI Flutter APK
+name: Build Vell AI Flutter Universal APK
 
 on:
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
       - name: Build optimized release APKs
         working-directory: mobile
         run: |
-          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols --tree-shake-icons --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols --tree-shake-icons --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
 
       - name: Report APK sizes
         shell: bash

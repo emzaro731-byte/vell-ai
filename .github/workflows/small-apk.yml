@@ -1,13 +1,11 @@
-name: Build Vell AI Android APK
+name: Build Vell AI Flutter APK
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'public/**'
-      - 'server.js'
-      - 'package.json'
+      - 'mobile/**'
       - '.github/workflows/small-apk.yml'
 
 permissions:
@@ -17,66 +15,66 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '17'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
-          node-version: '22'
+          channel: stable
+          cache: true
 
-      - name: Create lightweight Android WebView wrapper
+      - name: Generate Android platform scaffolding
         run: |
-          mkdir -p mobile/www
-          printf '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>Loading Vell AI…</body></html>' > mobile/www/index.html
-          cd mobile
-          npm init -y
-          npm install @capacitor/core @capacitor/android
-          npm install --save-dev @capacitor/cli
-          cat > capacitor.config.json <<'EOF'
-          {
-            "appId": "com.vellai.studio",
-            "appName": "Vell AI Studio",
-            "webDir": "www",
-            "server": {
-              "url": "https://vell-ai-1.onrender.com",
-              "cleartext": false,
-              "allowNavigation": ["vell-ai-1.onrender.com"]
-            }
-          }
-          EOF
-          npx cap add android
+          flutter create --platforms=android --org com.vellai --project-name vell_ai_studio /tmp/vell-scaffold
+          rm -rf mobile/android
+          cp -R /tmp/vell-scaffold/android mobile/android
+          sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' mobile/android/app/src/main/AndroidManifest.xml
 
-      - name: Build APK
+      - name: Install Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Build optimized release APKs
+        working-directory: mobile
         run: |
-          cd mobile/android
-          ./gradlew assembleDebug --no-daemon
+          flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols --tree-shake-icons --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
 
-      - name: Report APK size
+      - name: Report APK sizes
+        shell: bash
         run: |
-          APK="mobile/android/app/build/outputs/apk/debug/app-debug.apk"
-          test -f "$APK"
-          du -h "$APK"
+          shopt -s nullglob
+          files=(mobile/build/app/outputs/flutter-apk/*.apk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No APKs were generated."
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            bytes=$(stat -c%s "$file")
+            mib=$(awk -v b="$bytes" 'BEGIN { printf "%.2f", b/1048576 }')
+            echo "$file: $mib MiB ($bytes bytes)"
+          done
 
-      - name: Upload APK and ZIP
+      - name: Package APKs and symbols
         run: |
           mkdir -p release-package
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk release-package/Vell-AI-Studio.apk
+          cp mobile/build/app/outputs/flutter-apk/*.apk release-package/
+          if [ -d mobile/build/symbols ]; then cp -R mobile/build/symbols release-package/; fi
           cd release-package
-          zip ../Vell-AI-Studio-APK.zip Vell-AI-Studio.apk
+          zip -r ../Vell-AI-Flutter-APK.zip .
 
-      - name: Publish build artifacts
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vell-ai-android-apk
+          name: vell-ai-flutter-apk
           path: |
-            release-package/Vell-AI-Studio.apk
-            Vell-AI-Studio-APK.zip
+            mobile/build/app/outputs/flutter-apk/*.apk
+            Vell-AI-Flutter-APK.zip
           if-no-files-found: error
           retention-days: 14

@@ -68,17 +68,8 @@ class _StudioHomeState extends State<StudioHome> {
       setState(() { html = data['html']?.toString(); siteUrl = data['siteUrl']?.toString(); repoUrl = data['repository']?.toString(); status = data['message']?.toString() ?? 'Build started.'; tab = 1; });
     });
   }
-  Future<void> buildFlutterApk() async {
-    if (prompt.text.trim().isEmpty) { setState(() => status = 'Describe the Flutter app you want to build first.'); return; }
-    await perform(() async {
-      final data = await callApi('/api/build-flutter-apk', {'prompt': prompt.text.trim()});
-      setState(() {
-        flutterRepoUrl = data['repository']?.toString();
-        actionsUrl = data['actionsUrl']?.toString();
-        status = data['message']?.toString() ?? 'Flutter source created. APK build is starting on GitHub Actions.';
-        tab = 1;
-      });
-    });
+  void openFlutterBuilder() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => FlutterBuildPage(initialPrompt: prompt.text.trim())));
   }
   Future<void> retrieveUrl() async {
     await perform(() async {
@@ -121,7 +112,7 @@ class _StudioHomeState extends State<StudioHome> {
       const SizedBox(width: 8), Expanded(child: OutlinedButton.icon(onPressed: busy ? null : buildDeploy, icon: const Icon(Icons.rocket_launch_outlined), label: const Text('Build & deploy')))]),
     const SizedBox(height: 10),
     SizedBox(width: double.infinity, child: FilledButton.icon(
-      onPressed: busy ? null : buildFlutterApk,
+      onPressed: busy ? null : openFlutterBuilder,
       icon: const Icon(Icons.android),
       label: const Text('Build Flutter APK'),
       style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2E8B57), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15)),
@@ -130,8 +121,6 @@ class _StudioHomeState extends State<StudioHome> {
     const SizedBox(height: 14), Container(padding: const EdgeInsets.all(13), decoration: BoxDecoration(color: const Color(0xFF111827), borderRadius: BorderRadius.circular(14)), child: Text(status, style: const TextStyle(color: Color(0xFFC3CEE2), fontSize: 12, height: 1.45))),
     if (siteUrl != null && siteUrl!.startsWith('http')) linkCard('Live website', siteUrl!),
     if (repoUrl != null && repoUrl!.startsWith('http')) linkCard('GitHub repository', repoUrl!),
-    if (flutterRepoUrl != null && flutterRepoUrl!.startsWith('http')) linkCard('Flutter APK source repository', flutterRepoUrl!),
-    if (actionsUrl != null && actionsUrl!.startsWith('http')) InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!))), child: linkCard('Open APK build status on GitHub Actions', actionsUrl!)),
     if (flutterRepoUrl != null && flutterRepoUrl!.startsWith('http')) linkCard('Flutter APK source repository', flutterRepoUrl!),
     if (actionsUrl != null && actionsUrl!.startsWith('http')) InkWell(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!))), child: linkCard('Open APK build status on GitHub Actions', actionsUrl!)),
     const SizedBox(height: 24), const Text('Start with a template', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
@@ -186,5 +175,171 @@ class _UrlPageState extends State<UrlPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('GitHub APK build status')),
     body: WebViewWidget(controller: controller),
+  );
+}
+
+
+class FlutterBuildPage extends StatefulWidget {
+  final String initialPrompt;
+  const FlutterBuildPage({super.key, required this.initialPrompt});
+  @override
+  State<FlutterBuildPage> createState() => _FlutterBuildPageState();
+}
+
+class _FlutterBuildPageState extends State<FlutterBuildPage> {
+  late final TextEditingController prompt;
+  bool busy = false;
+  String status = 'Describe your app, then tap Build my APK.';
+  String? repository;
+  String? actionsUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    prompt = TextEditingController(text: widget.initialPrompt);
+  }
+
+  @override
+  void dispose() {
+    prompt.dispose();
+    super.dispose();
+  }
+
+  Future<void> buildApk() async {
+    if (prompt.text.trim().isEmpty) {
+      setState(() => status = 'Please describe the app you want to build.');
+      return;
+    }
+    setState(() { busy = true; status = 'Sending your app idea to Vell AI…'; });
+    try {
+      final response = await http.post(
+        Uri.parse('$apiBase/api/build-flutter-apk'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'prompt': prompt.text.trim()}),
+      ).timeout(const Duration(minutes: 3));
+      final data = jsonDecode(response.body);
+      if (data is! Map<String, dynamic>) throw Exception('Unexpected response from the Vell backend.');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(data['error']?.toString() ?? 'Could not start the APK build.');
+      }
+      setState(() {
+        repository = data['repository']?.toString();
+        actionsUrl = data['actionsUrl']?.toString();
+        status = data['message']?.toString() ?? 'Your Flutter project was created. GitHub Actions is building the APK.';
+      });
+    } catch (e) {
+      setState(() => status = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Widget resultLink(String title, String url, VoidCallback onTap) => Card(
+    color: const Color(0xFF111827),
+    child: ListTile(
+      leading: const Icon(Icons.open_in_new, color: Color(0xFF9BAFFF)),
+      title: Text(title),
+      subtitle: Text(url, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onTap,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Build an Android app'),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pop(context),
+      ),
+    ),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1A2850), Color(0xFF111827)],
+              ),
+              border: Border.all(color: const Color(0xFF34456D)),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.android, size: 34, color: Color(0xFF83E1A5)),
+                SizedBox(height: 14),
+                Text('Your idea → Flutter source → APK',
+                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w800)),
+                SizedBox(height: 8),
+                Text('Vell AI creates a Flutter project and starts a cloud APK build. You can track the build and download the APK from GitHub Actions when it finishes.',
+                  style: TextStyle(color: Color(0xFFB4C0D8), height: 1.5)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 22),
+          const Text('What app should I build?',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          TextField(
+            controller: prompt,
+            minLines: 5,
+            maxLines: 10,
+            maxLength: 8000,
+            decoration: const InputDecoration(
+              hintText: 'Example: Build a student CBT app with login, past questions, timer, results, and AI tutor.',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: busy ? null : buildApk,
+              icon: busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.rocket_launch),
+              label: Text(busy ? 'Starting your build…' : 'Build my APK'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: const Color(0xFF2E8B57),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+          if (busy) const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: LinearProgressIndicator(),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111827),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, color: Color(0xFF9BAFFF)),
+                const SizedBox(width: 10),
+                Expanded(child: Text(status, style: const TextStyle(height: 1.5))),
+              ],
+            ),
+          ),
+          if (repository != null && repository!.startsWith('http'))
+            resultLink('Open generated source repository', repository!,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: repository!)))),
+          if (actionsUrl != null && actionsUrl!.startsWith('http'))
+            resultLink('Track build / download APK', actionsUrl!,
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => UrlPage(url: actionsUrl!)))),
+        ],
+      ),
+    ),
   );
 }

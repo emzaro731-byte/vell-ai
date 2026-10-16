@@ -285,4 +285,41 @@ document.querySelectorAll('[data-refine]').forEach(function(b){b.addEventListene
 .vell-build-panel p{font-size:12px;line-height:1.6;color:#aab9d3;margin:8px 0 12px;overflow-wrap:anywhere}.vell-build-actions{display:flex;gap:8px;flex-wrap:wrap}.vell-build-actions button{font-size:12px}
 @keyframes vellPulse{50%{opacity:.45;box-shadow:0 0 0 8px #8fb6ff08}}
 @media(prefers-reduced-motion:reduce){.vell-build-dot{animation:none}}
-</style></body></html>
+</style>
+<style>
+#vellCloudHistory{position:fixed;inset:0;z-index:1000;background:#05070bd9;display:none;align-items:center;justify-content:center;padding:14px}
+#vellCloudHistory.open{display:flex}#vellCloudHistory .vh-dialog{width:min(760px,100%);max-height:90dvh;overflow:auto;background:#10131b;color:#f4f5f8;border:1px solid #303746;border-radius:18px}
+#vellCloudHistory .vh-head{position:sticky;top:0;background:#10131b;padding:17px;border-bottom:1px solid #2a3040;display:flex;align-items:center;gap:12px;z-index:2}
+#vellCloudHistory .vh-head h2{margin:0;font-size:19px}#vellCloudHistory .vh-head p{margin:4px 0 0;color:#9ca7ba;font-size:12px}
+#vellCloudHistory .vh-close{margin-left:auto;background:#202633;color:white;border:1px solid #394153;border-radius:9px;padding:8px 12px}
+#vellCloudHistory .vh-list{padding:14px;display:grid;gap:10px}
+#vellCloudHistory .vh-item{padding:14px;border:1px solid #303747;border-radius:13px;background:#171b25}
+#vellCloudHistory .vh-item h3{margin:0 0 5px;font-size:14px}#vellCloudHistory .vh-meta{color:#9ca7ba;font-size:11px;margin-bottom:7px}
+#vellCloudHistory .vh-prompt{font-size:12px;color:#d3d8e2;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow:hidden}
+#vellCloudHistory .vh-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+#vellCloudHistory .vh-actions button{border:1px solid #39465d;border-radius:8px;padding:8px 10px;background:#202b3e;color:#f4f6fa}
+#vellCloudHistory .vh-actions .vh-primary{background:#d9b77a;color:#17130c;border-color:#d9b77a;font-weight:750}
+#vellCloudHistory .vh-empty{padding:28px;text-align:center;color:#aab4c5}
+</style>
+<script>
+(function(){
+ let active=null;
+ const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const layer=document.createElement('div');layer.id='vellCloudHistory';
+ layer.innerHTML='<section class="vh-dialog" role="dialog" aria-modal="true"><header class="vh-head"><div><h2>My projects</h2><p>Saved in your existing Vell AI repository. Reopen and keep building.</p></div><button class="vh-close" type="button">Close ✕</button></header><div class="vh-list"><div class="vh-empty">Loading projects…</div></div></section>';
+ document.body.appendChild(layer);
+ const top=document.querySelector('.topright')||document.querySelector('.top');
+ if(top){const b=document.createElement('button');b.className='btn';b.type='button';b.textContent='My projects';b.addEventListener('click',open);top.insertBefore(b,top.firstChild)}
+ layer.querySelector('.vh-close').onclick=()=>layer.classList.remove('open');
+ layer.addEventListener('click',e=>{if(e.target===layer)layer.classList.remove('open')});
+ async function open(){layer.classList.add('open');const list=layer.querySelector('.vh-list');list.innerHTML='<div class="vh-empty">Loading saved projects…</div>';try{const r=await fetch('/api/projects');const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load history');const items=d.projects||[];if(!items.length){list.innerHTML='<div class="vh-empty">No saved cloud projects yet. Build an app, and Vell AI will save it here.</div>';return}list.innerHTML='';items.forEach(p=>{const card=document.createElement('article');card.className='vh-item';card.innerHTML='<h3>'+esc(p.title||'Untitled project')+'</h3><div class="vh-meta">Updated '+esc(new Date(p.updatedAt||Date.now()).toLocaleString())+' · '+(p.html?'Preview saved':'Prompt saved')+'</div><div class="vh-prompt">'+esc(p.prompt)+'</div><div class="vh-actions"><button class="vh-primary" data-a="continue">Continue editing</button>'+(p.html?'<button data-a="preview">Preview</button>':'')+'<button data-a="delete">Delete</button></div>';card.querySelectorAll('button').forEach(b=>b.onclick=async()=>{if(b.dataset.a==='continue'){active={id:p.id,prompt:p.prompt||'',html:p.html||''};window.vellActiveProject=active;try{localStorage.setItem('vellCurrentHtml',active.html);localStorage.setItem('vellCurrentPrompt',active.prompt)}catch(_){}const promptBox=document.getElementById('prompt');if(promptBox){promptBox.value='Continue updating this existing project. Keep its current features and design. My next change: ';layer.classList.remove('open');promptBox.focus();promptBox.scrollIntoView({behavior:'smooth',block:'center'})}}else if(b.dataset.a==='preview'){const w=window.open('about:blank','_blank');if(w){w.document.open();w.document.write(p.html||'');w.document.close()}}else if(b.dataset.a==='delete'){if(!confirm('Delete this saved project from cloud history?'))return;const dr=await fetch('/api/projects/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:p.id})});if(!dr.ok){const er=await dr.json();alert(er.error||'Delete failed');return}open()}});list.appendChild(card)})}catch(e){list.innerHTML='<div class="vh-empty">'+esc(e.message)+'<br><br>Check that Render is running the latest deployment and GITHUB_TOKEN is configured.</div>'}}
+ const priorFetch=window.fetch.bind(window);
+ window.fetch=async function(input,init){let url=typeof input==='string'?input:(input&&input.url)||'';let opts=init?{...init}:{};if(/^\/api\/generate(?:\?|$)/.test(url)&&active){let body={};try{body=JSON.parse(opts.body||'{}')}catch(_){}body.existingHtml=active.html||'';opts.body=JSON.stringify(body);if(!opts.headers||!opts.headers['Content-Type'])opts.headers={...(opts.headers||{}),'Content-Type':'application/json'}}
+ const response=await priorFetch(input,opts);
+ if(response.ok&&/^\/api\/(generate|build-and-deploy)(?:\?|$)/.test(url)){try{const reqBody=JSON.parse(opts.body||'{}'),data=await response.clone().json();if(data.html){const id=active&&active.id?active.id:undefined;const saved=await priorFetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,prompt:reqBody.prompt||'New Vell AI project',html:data.html,kind:url.includes('build-and-deploy')?'deploy':'generate'})});if(saved.ok){const p=await saved.json();active={id:p.project.id,prompt:p.project.prompt,html:p.project.html};window.vellActiveProject=active}else{console.warn('Project history save failed',await saved.text())}}}catch(e){console.warn('Could not save project history',e)}}
+ return response
+ };
+ window.addEventListener('keydown',e=>{if(e.key==='Escape')layer.classList.remove('open')});
+})();
+</script>
+</body></html>

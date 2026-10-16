@@ -37,6 +37,14 @@ app.get('/api/projects',async(req,res)=>{try{
  const store=await readProjectStore();
  res.json({ok:true,projects:(Array.isArray(store.items)?store.items:[]).map(({html,...p})=>({...p,hasPreview:!!html,html}))});
 }catch(e){res.status(500).json({error:e.message||'Could not load saved projects.'})}});
+app.post('/api/projects/delete',async(req,res)=>{try{
+ if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Project history needs GITHUB_TOKEN configured on Render.'});
+ const id=String(req.body.id||'');if(!id)return res.status(400).json({error:'Project ID is required.'});
+ const store=await readProjectStore();const next=(Array.isArray(store.items)?store.items:[]).filter(p=>p.id!==id);
+ if(next.length==store.items.length)return res.status(404).json({error:'Project not found.'});
+ await gh('https://api.github.com/repos/'+store.full+'/contents/'+PROJECTS_PATH,{method:'PUT',body:JSON.stringify({message:'Delete Vell AI project history item',content:Buffer.from(JSON.stringify(next,null,2)).toString('base64'),branch:'main',sha:store.sha})});
+ res.json({ok:true});
+}catch(e){res.status(500).json({error:e.message||'Could not delete saved project.'})}});
 app.post('/api/projects',async(req,res)=>{try{
  if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Project history needs GITHUB_TOKEN configured on Render.'});
  const p=req.body||{};

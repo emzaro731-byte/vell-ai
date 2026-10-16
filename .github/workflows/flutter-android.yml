@@ -1,4 +1,4 @@
-name: Build Vell AI Studio Android APK
+name: Build Vell AI Studio Android APK (7 MB target)
 
 on:
   workflow_dispatch:
@@ -53,10 +53,39 @@ jobs:
       - name: Analyze Dart source
         run: flutter analyze --no-pub
 
-      - name: Build optimized release APK
-        run: flutter build apk --release --split-per-abi --tree-shake-icons --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
+      - name: Build smallest practical release APKs
+        run: |
+          flutter build apk --release --split-per-abi --tree-shake-icons --obfuscate --split-debug-info=build/symbols --dart-define=VELL_API_BASE=https://vell-ai-1.onrender.com
+          echo "APK size report (target is 7 MB per APK; size depends on app assets and plugins):"
+          for file in build/app/outputs/flutter-apk/*.apk; do
+            bytes=$(stat -c%s "$file")
+            mib=$(awk -v b="$bytes" 'BEGIN { printf "%.2f", b/1048576 }')
+            echo "$file: $mib MiB ($bytes bytes)"
+          done
 
-      - name: Package APKs into a direct-download ZIP
+      - name: Check APK size target
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep all ABI-specific APKs. A 7 MiB target is reported honestly;
+          # fail only if no APK exists, since Flutter plugins may exceed the target.
+          shopt -s nullglob
+          apks=(mobile/build/app/outputs/flutter-apk/*.apk)
+          if [ ${#apks[@]} -eq 0 ]; then
+            echo "::error::No APKs were generated."
+            exit 1
+          fi
+          for file in "${apks[@]}"; do
+            bytes=$(stat -c%s "$file")
+            if [ "$bytes" -gt 7340032 ]; then
+              echo "::warning file=$file::APK is above the 7 MiB target (${bytes} bytes). Native Flutter engine and app dependencies set a practical size floor."
+            else
+              echo "7 MiB target met: $file (${bytes} bytes)"
+            fi
+          done
+
+      - name: Package APKs and symbol files
         working-directory: .
         run: |
           set -euo pipefail
@@ -64,8 +93,9 @@ jobs:
           cp mobile/build/app/outputs/flutter-apk/*.apk release-package/
           cat > release-package/README.txt <<'EOF'
           Vell AI Studio Android APKs
-          Install the APK matching your Android device CPU architecture.
-          For most modern Android phones, try the arm64-v8a APK.
+          APKs are split by CPU architecture to reduce each download size.
+          Install the APK matching your device. Most modern Android phones use arm64-v8a.
+          Debug symbols are intentionally not included in this ZIP to keep the download small.
           EOF
           cd release-package
           zip -9 -r ../Vell-AI-Studio-APK.zip .

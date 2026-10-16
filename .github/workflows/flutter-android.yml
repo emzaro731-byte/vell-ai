@@ -3,7 +3,7 @@ name: Build Vell AI Studio Android APK (7 MB target)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: ["**"]
     paths:
       - "mobile/**"
       - ".github/workflows/flutter-android.yml"

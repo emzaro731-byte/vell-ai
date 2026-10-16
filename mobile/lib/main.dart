@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+const apiBase = String.fromEnvironment('VELL_API_BASE', defaultValue: 'https://vell-ai-1.onrender.com');
+
 
 bool _hasExplicitAppName(String text) =>
     RegExp(r'\b(called|named|name\s*(?:is|:|=)|titled)\s+["“]?([A-Za-z0-9][A-Za-z0-9 _-]{0,39})', caseSensitive: false).hasMatch(text);

@@ -1,416 +1,328 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+const apiBase = String.fromEnvironment(
+  'VELL_API_BASE',
+  defaultValue: 'https://vell-ai-1.onrender.com',
+);
 
 void main() => runApp(const VellApp());
 
 class VellApp extends StatelessWidget {
   const VellApp({super.key});
-
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Vell AI',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        useMaterial3: true,
-      ),
-      home: const ConversationScreen(),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Vell AI',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: const Color(0xFF080A10),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF728BFF),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
+        ),
+        home: const ChatScreen(),
+      );
 }
 
-class ConversationScreen extends StatefulWidget {
-  const ConversationScreen({super.key});
-
-  @override
-  State<ConversationScreen> createState() => _ConversationScreenState();
+class ChatMessage {
+  ChatMessage(this.text, this.isUser);
+  final String text;
+  final bool isUser;
 }
 
-class _ConversationScreenState extends State<ConversationScreen> {
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final List<String> _userMessages = [];
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key});
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  final input = TextEditingController();
+  final scroll = ScrollController();
+  final messages = <ChatMessage>[];
+  bool sending = false;
 
   @override
   void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
+    input.dispose();
+    scroll.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final message = _controller.text.trim();
-    if (message.isEmpty) return;
+  Future<void> send() async {
+    final text = input.text.trim();
+    if (text.isEmpty || sending) return;
     setState(() {
-      _userMessages.add(message);
-      _controller.clear();
+      messages.add(ChatMessage(text, true));
+      sending = true;
+      input.clear();
     });
-    FocusScope.of(context).unfocus();
+    _scrollDown();
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${apiBase.replaceAll(RegExp(r'/+$'), '')}/api/chat'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({'message': text}),
+          )
+          .timeout(const Duration(seconds: 90));
+      final data = jsonDecode(response.body);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(data is Map ? (data['error'] ?? 'AI request failed') : 'AI request failed');
+      }
+      final reply = data is Map ? (data['reply']?.toString() ?? '') : '';
+      if (reply.isEmpty) throw Exception('The AI returned an empty response.');
+      if (mounted) setState(() => messages.add(ChatMessage(reply, false)));
+    } catch (e) {
+      if (mounted) {
+        final detail = e.toString().replaceFirst('Exception: ', '');
+        setState(() => messages.add(ChatMessage(
+              'I could not reach Vell AI. Check your internet connection and confirm the backend is awake. Details: $detail',
+              false,
+            )));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => sending = false);
+        _scrollDown();
+      }
+    }
+  }
+
+  void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
+      if (scroll.hasClients) {
+        scroll.animateTo(scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
     });
   }
 
+  void newChat() => setState(() {
+        messages.clear();
+        input.clear();
+      });
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.black,
+      statusBarColor: Color(0xFF080A10),
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF08090B),
+      systemNavigationBarColor: Color(0xFF080A10),
       systemNavigationBarIconBrightness: Brightness.light,
     ));
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _topBar(),
-            Expanded(
-              child: ListView(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(30, 4, 30, 26),
-                children: [
-                  const Text(
-                    'APK build failure in your code',
-                    style: TextStyle(
-                      color: Color(0xFF777777),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 26),
-                  const Text(
-                    'What I fixed',
-                    style: TextStyle(
-                      color: Color(0xFF777777),
-                      fontSize: 25,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  const _RichParagraph(
-                    children: [
-                      TextSpan(text: 'The build failed because '),
-                      TextSpan(
-                        text: 'flutter create',
-                        style: TextStyle(fontFamily: 'monospace'),
-                      ),
-                      TextSpan(text: ' generated a default test that references '),
-                      TextSpan(
-                        text: 'MyApp',
-                        style: TextStyle(fontFamily: 'monospace'),
-                      ),
-                      TextSpan(text: ", but your app doesn't define a class with that name."),
-                    ],
-                  ),
-                  const SizedBox(height: 52),
-                  const Text(
-                    'I updated the workflow to:',
-                    style: TextStyle(
-                      color: Color(0xFFF5F5F5),
-                      fontSize: 25,
-                      height: 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 36),
-                  const _Bullet(text: 'Analyze your actual app source in mobile/lib.'),
-                  const _Bullet(text: 'Avoid failing on the unrelated generated template test.'),
-                  const _Bullet(text: 'Keep the 7 MB APK size target.'),
-                  const _Bullet(text: 'Preserve APK splitting, obfuscation, and tree-shaking.'),
-                  const _Bullet(text: 'Continue packaging the APKs into a ZIP file.'),
-                  const SizedBox(height: 48),
-                  const Text(
-                    '🔨 A new build has started',
-                    style: TextStyle(
-                      color: Color(0xFFF5F5F5),
-                      fontSize: 24,
-                      height: 1.4,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  _ActionText(
-                    label: 'Check the new build progress ↗',
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 44),
-                  _ActionText(
-                    label: 'Open your Vell AI repository ↗',
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 46),
-                  const Text(
-                    'The new build is queued. I haven’t confirmed that it passes or that the APK reaches 7 MB yet.',
-                    style: TextStyle(
-                      color: Color(0xFFF0F0F0),
-                      fontSize: 23,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  for (final message in _userMessages) ...[
-                    const SizedBox(height: 28),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 300),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF292929),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Text(message,
-                            style: const TextStyle(fontSize: 17, height: 1.4)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'I’m here to help. Tell me what you’d like to change next.',
-                      style: TextStyle(fontSize: 18, height: 1.5),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-            _composer(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _topBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 12, 26, 14),
-      child: Row(
-        children: [
-          _RoundButton(
-            icon: Icons.menu_rounded,
-            onTap: () => _showNotice('Chat history'),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF080A10),
+        titleSpacing: 18,
+        title: const Row(children: [
+          _VellMark(),
+          SizedBox(width: 10),
+          Text('Vell AI', style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(width: 8),
+          _OnlinePill(),
+        ]),
+        actions: [
+          IconButton(
+            tooltip: 'New chat',
+            onPressed: newChat,
+            icon: const Icon(Icons.edit_square),
           ),
-          const Spacer(),
-          Container(
-            height: 56,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF202020),
-              border: Border.all(color: const Color(0xFF292929)),
-              borderRadius: BorderRadius.circular(32),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'New chat',
-                  onPressed: () => setState(() => _userMessages.clear()),
-                  icon: const Icon(Icons.edit_square, size: 27),
-                ),
-                IconButton(
-                  tooltip: 'More options',
-                  onPressed: () => _showNotice('Vell AI options'),
-                  icon: const Icon(Icons.more_vert, size: 28),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-    );
-  }
-
-  Widget _composer() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 8, 22, 12),
-      color: Colors.black,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 62),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF202020),
-          border: Border.all(color: const Color(0xFF343434)),
-          borderRadius: BorderRadius.circular(36),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            IconButton(
-              onPressed: () => _showNotice('Attach a file'),
-              icon: const Icon(Icons.add, size: 32),
-              color: const Color(0xFFF5F5F5),
-              padding: const EdgeInsets.all(7),
-              constraints: const BoxConstraints(minWidth: 42, minHeight: 48),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: TextField(
-                  controller: _controller,
-                  minLines: 1,
-                  maxLines: 5,
-                  textCapitalization: TextCapitalization.sentences,
-                  onSubmitted: (_) => _send(),
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Reply to Vell AI',
-                    hintStyle: TextStyle(
-                      color: Color(0xFFB7B7B7),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 13),
-                    isDense: true,
-                  ),
+      body: Column(children: [
+        Expanded(
+          child: messages.isEmpty
+              ? _welcome()
+              : ListView.builder(
+                  controller: scroll,
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
+                  itemCount: messages.length + (sending ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (sending && index == messages.length) {
+                      return const _TypingIndicator();
+                    }
+                    final message = messages[index];
+                    return _MessageBubble(message: message);
+                  },
                 ),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Voice input',
-              onPressed: () => _showNotice('Voice input'),
-              icon: const Icon(Icons.mic_none_rounded, size: 29),
-              color: const Color(0xFFF4F4F4),
-            ),
-            const SizedBox(width: 2),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2, right: 0),
-              child: Material(
-                color: const Color(0xFF1677F8),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _send,
-                  child: const SizedBox(
-                    width: 46,
-                    height: 46,
-                    child: Icon(Icons.graphic_eq_rounded,
-                        color: Colors.white, size: 27),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
-      ),
+        _composer(),
+      ]),
     );
   }
 
-  void _showNotice(String title) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(title),
-        backgroundColor: const Color(0xFF303030),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-}
-
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF202020),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          width: 82,
-          height: 82,
-          child: Icon(icon, size: 32, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
-class _RichParagraph extends StatelessWidget {
-  const _RichParagraph({required this.children});
-  final List<InlineSpan> children;
-
-  @override
-  Widget build(BuildContext context) => Text.rich(
-        TextSpan(
-          style: const TextStyle(
-            color: Color(0xFFF3F3F3),
-            fontSize: 23,
-            height: 1.48,
-            fontWeight: FontWeight.w600,
+  Widget _welcome() => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(26),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _VellMark(size: 58),
+              const SizedBox(height: 22),
+              const Text('What can I help with?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.7)),
+              const SizedBox(height: 10),
+              const Text('Ask a question, plan an idea, or build something new.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF9BA4B7), height: 1.5)),
+              const SizedBox(height: 24),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _Suggestion(text: 'Build a website', onTap: () => _suggest('Help me plan and build a modern responsive website.')),
+                  _Suggestion(text: 'Explain a topic', onTap: () => _suggest('Explain a difficult topic in simple steps.')),
+                  _Suggestion(text: 'Write code', onTap: () => _suggest('Help me write and debug code.')),
+                ],
+              ),
+            ],
           ),
-          children: children,
+        ),
+      );
+
+  void _suggest(String value) {
+    input.text = value;
+    input.selection = TextSelection.collapsed(offset: input.text.length);
+  }
+
+  Widget _composer() => SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+          decoration: const BoxDecoration(
+            color: Color(0xFF080A10),
+            border: Border(top: BorderSide(color: Color(0xFF1C2230))),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF151925),
+              borderRadius: BorderRadius.circular(25),
+              border: Border.all(color: const Color(0xFF30374A)),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 6, 7, 6),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Expanded(
+                child: TextField(
+                  controller: input,
+                  minLines: 1,
+                  maxLines: 6,
+                  textCapitalization: TextCapitalization.sentences,
+                  onSubmitted: (_) => send(),
+                  decoration: const InputDecoration(
+                    hintText: 'Message Vell AI',
+                    hintStyle: TextStyle(color: Color(0xFF8992A5)),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                tooltip: 'Send message',
+                onPressed: sending ? null : send,
+                icon: sending
+                    ? const SizedBox(width: 19, height: 19, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.arrow_upward_rounded),
+              ),
+            ]),
+          ),
         ),
       );
 }
 
-class _Bullet extends StatelessWidget {
-  const _Bullet({required this.text});
-  final String text;
-
+class _VellMark extends StatelessWidget {
+  const _VellMark({this.size = 34});
+  final double size;
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 2, right: 13),
-            child: Text('•',
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.w700)),
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(size * .32),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8298FF), Color(0xFF58DDE2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFFF2F2F2),
-                fontSize: 23,
-                height: 1.45,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        alignment: Alignment.center,
+        child: Text('V', style: TextStyle(color: Color(0xFF08101B), fontSize: size * .52, fontWeight: FontWeight.w900)),
+      );
 }
 
-class _ActionText extends StatelessWidget {
-  const _ActionText({required this.label, required this.onTap});
-  final String label;
-  final VoidCallback onTap;
-
+class _OnlinePill extends StatelessWidget {
+  const _OnlinePill();
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFFF5F5F5),
-          fontSize: 23,
-          height: 1.4,
-          fontWeight: FontWeight.w700,
-          decoration: TextDecoration.underline,
-          decorationStyle: TextDecorationStyle.dotted,
-          decorationThickness: 1.5,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(color: const Color(0xFF12271F), borderRadius: BorderRadius.circular(20)),
+        child: const Row(children: [
+          Icon(Icons.circle, size: 6, color: Color(0xFF65DDA8)),
+          SizedBox(width: 5),
+          Text('AI', style: TextStyle(fontSize: 10, color: Color(0xFF9BE8C3))),
+        ]),
+      );
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.message});
+  final ChatMessage message;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 18),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            if (!message.isUser) ...[const _VellMark(size: 28), const SizedBox(width: 10)],
+            Flexible(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 620),
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                decoration: BoxDecoration(
+                  color: message.isUser ? const Color(0xFF26365F) : const Color(0xFF121722),
+                  border: Border.all(color: message.isUser ? const Color(0xFF344A80) : const Color(0xFF222A39)),
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: SelectableText(message.text, style: const TextStyle(fontSize: 15, height: 1.55)),
+              ),
+            ),
+          ],
         ),
-      ),
-    );
-  }
+      );
+}
+
+class _TypingIndicator extends StatelessWidget {
+  const _TypingIndicator();
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.fromLTRB(38, 8, 0, 20),
+        child: Row(children: [
+          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          SizedBox(width: 12),
+          Text('Vell AI is thinking…', style: TextStyle(color: Color(0xFF9BA4B7))),
+        ]),
+      );
+}
+
+class _Suggestion extends StatelessWidget {
+  const _Suggestion({required this.text, required this.onTap});
+  final String text;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => ActionChip(
+        label: Text(text),
+        onPressed: onTap,
+        backgroundColor: const Color(0xFF151925),
+        side: const BorderSide(color: Color(0xFF30374A)),
+      );
 }

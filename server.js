@@ -17,6 +17,15 @@ async function generateHtml(prompt,existingHtml=''){
  return html;
 }
 app.post('/api/generate',async(req,res)=>{try{const prompt=String(req.body.prompt||'').trim();if(!prompt)return res.status(400).json({error:'Describe the website you want.'});if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});res.json({html:await generateHtml(prompt,String(req.body.existingHtml||'').slice(0,140000))})}catch(e){res.status(e.status||500).json({error:e.message||'Could not generate website. Try again.'})}});
+app.post('/api/chat',async(req,res)=>{try{
+ const message=String(req.body.message||'').trim();
+ if(!message)return res.status(400).json({error:'Enter a message first.'});
+ if(message.length>8000)return res.status(400).json({error:'Message must be under 8,000 characters.'});
+ if(!process.env.GROQ_API_KEY)return res.status(503).json({error:'Add GROQ_API_KEY in Render Environment.'});
+ const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.5,max_tokens:3000,messages:[{role:'system',content:'You are Vell AI, a helpful assistant inside an AI app builder. Answer the user clearly and helpfully. Do not output HTML unless the user explicitly asks for code or a web page. Never claim you performed an action you did not perform.'},{role:'user',content:message}]})});
+ const data=await response.json();if(!response.ok)return res.status(response.status).json({error:data.error?.message||'AI chat request failed.'});
+ res.json({ok:true,reply:data.choices?.[0]?.message?.content||'I could not generate a response. Please try again.'});
+}catch(e){res.status(500).json({error:e.message||'AI chat request failed.'})}});
 async function gh(url,opt={}){const r=await fetch(url,{...opt,headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json',...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||'GitHub API error '+r.status);return d}
 async function renderApi(url,opt={}){const r=await fetch(url,{...opt,headers:{Authorization:'Bearer '+process.env.RENDER_API_KEY,Accept:'application/json','Content-Type':'application/json',...(opt.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||d.error||'Render API error '+r.status);return d}
 

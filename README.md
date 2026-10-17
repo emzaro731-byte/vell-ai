@@ -25,3 +25,17 @@ Use a separate target repository for generated websites. Do not set `GITHUB_REPO
 The target Render service must be connected to the same GitHub target repository and branch and configured to serve the generated HTML. Publishing and deployment are separate actions.
 
 Health endpoint: `GET /api/health`.
+
+
+## Vell AI full-stack generation
+The Builder includes **Full-stack project** generation at `POST /api/generate-project`. It returns a reviewable JSON manifest of up to 12 source files from Groq. Generated files are starter code and still need review, environment configuration, and a deployment target; they are not automatically deployed by this endpoint.
+
+## Vell Chat messaging app
+Open `/messenger.html` after the service deploys. The app supports Supabase email/password sign-up and sign-in, contact lookup by email, private and group chat creation, realtime message updates, and image/video/file attachments.
+
+Add these variables to the Render service environment:
+- `SUPABASE_URL` — your Supabase project URL (or existing `NEXT_PUBLIC_SUPABASE_URL`).
+- `SUPABASE_ANON_KEY` — the project's publishable/anon key (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`). Never put the service-role key in browser code.
+- `GROQ_API_KEY` — for AI chat and project generation.
+
+Then open the Supabase SQL Editor and run `supabase/messenger-schema.sql`. Enable email/password sign-in in Supabase Authentication. For a production messaging service, review the SQL/storage access policies, configure email confirmation and abuse protection, and add message deletion, blocking/reporting, push notifications, and end-to-end encryption before launch. This starter is not WhatsApp and does not implement end-to-end encryption.

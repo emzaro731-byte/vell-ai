@@ -53,7 +53,7 @@ create policy "signed in users create chats" on public.chats for insert to authe
 drop policy if exists "members read membership" on public.chat_members;
 create policy "members read membership" on public.chat_members for select to authenticated using (public.is_chat_member(chat_id,auth.uid()));
 drop policy if exists "chat creator adds members" on public.chat_members;
-create policy "chat creator adds members" on public.chat_members for insert to authenticated with check (user_id=auth.uid() or exists(select 1 from public.chats c where c.id=chat_id and c.created_by=auth.uid()));
+create policy "chat creator adds members" on public.chat_members for insert to authenticated with check (exists(select 1 from public.chats c where c.id=chat_id and c.created_by=auth.uid()));
 drop policy if exists "members read messages" on public.messages;
 create policy "members read messages" on public.messages for select to authenticated using (public.is_chat_member(chat_id,auth.uid()));
 drop policy if exists "members send messages" on public.messages;

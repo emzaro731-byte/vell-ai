@@ -292,13 +292,13 @@ app.post('/api/flutter-auto-fix',async(req,res)=>{try{
  let logs='Build failed; logs unavailable.';
  if(logResponse.ok){
   const logBytes=Buffer.from(await logResponse.arrayBuffer());
-  try{logs=readZipEntries(logBytes).map(x=>'--- '+x.name+' ---\\n'+x.data.toString('utf8')).join('\\n').slice(-24000)||logs}catch(_){logs=logBytes.toString('utf8').slice(-24000)||logs}
+  try{logs=readZipEntries(logBytes).map(x=>'--- '+x.name+' ---\n'+x.data.toString('utf8')).join('\n').slice(-24000)||logs}catch(_){logs=logBytes.toString('utf8').slice(-24000)||logs}
  }
  const file=await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart?ref='+encodeURIComponent(branch));
  const source=Buffer.from(file.content||'','base64').toString('utf8');
  const pubspecFile=await gh('https://api.github.com/repos/'+full+'/contents/mobile/pubspec.yaml?ref='+encodeURIComponent(branch));
  const pubspec=Buffer.from(pubspecFile.content||'','base64').toString('utf8');
- const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix the specific compile/build error shown in the logs while preserving the intended app. Use Flutter SDK and packages already declared in pubspec.yaml only. Do not change the app purpose or remove its embedded HTML WebView. No markdown fences or explanations.'},{role:'user',content:'Repair this Flutter source for the current failed build. The build is for branch '+branch+'.\\nBUILD LOG:\\n'+logs+'\\nPUBSPEC:\\n'+pubspec+'\\nSOURCE FILE:\\n'+source}]})});
+ const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix the specific compile/build error shown in the logs while preserving the intended app. Use Flutter SDK and packages already declared in pubspec.yaml only. Do not change the app purpose or remove its embedded HTML WebView. No markdown fences or explanations.'},{role:'user',content:'Repair this Flutter source for the current failed build. The build is for branch '+branch+'.\nBUILD LOG:\n'+logs+'\nPUBSPEC:\n'+pubspec+'\nSOURCE FILE:\n'+source}]})});
  const ai=await aiResponse.json();if(!aiResponse.ok)throw Error(ai.error?.message||'AI could not repair the source.');
  const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\s*```(?:dart)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
  if(!fixed.includes('void main(')||!fixed.includes('MaterialApp')||fixed.length<200)throw Error('The automatic repair did not produce valid Flutter source.');

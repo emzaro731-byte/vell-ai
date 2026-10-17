@@ -177,7 +177,10 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  repoUrl='https://github.com/'+fullRepo+'/tree/'+branch;
  const base='https://api.github.com/repos/'+fullRepo+'/contents/';
  async function putFile(filePath,content,message){
-  await gh(base+filePath,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch})});
+  let sha=null;
+  try{const current=await gh(base+filePath+'?ref='+encodeURIComponent(branch));sha=current.sha;}
+  catch(e){if(!String(e.message).includes('Not Found'))throw e;}
+  await gh(base+filePath,{method:'PUT',body:JSON.stringify({message,content:Buffer.from(content).toString('base64'),branch,...(sha?{sha}:{})})});
  }
  const safeHtml=previewHtml.replace(/<base\b[^>]*>/gi,'');
  const dart=[
@@ -249,7 +252,7 @@ function readZipEntries(input){
 
 app.get('/api/flutter-build-status',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim();
- if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
  const branch=String(req.query.branch||'').trim();
  if(!branch||branch.length>200||! /^[A-Za-z0-9._/-]+$/.test(branch)||branch.includes('..'))return res.status(400).json({error:'A valid build branch is required.'});
  const endpoint='https://api.github.com/repos/'+full+'/actions/workflows/flutter-android.yml/runs?per_page=1&branch='+encodeURIComponent(branch);
@@ -279,7 +282,7 @@ app.get('/api/flutter-build-status',async(req,res)=>{try{
 
 app.post('/api/flutter-auto-fix',async(req,res)=>{try{
  const full=String(req.body.repository||'').trim(),runId=String(req.body.runId||'').trim(),branch=String(req.body.branch||'').trim();
- if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full)||!/^\\d+$/.test(runId))return res.status(400).json({error:'A valid repository and failed run ID are required.'});
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(runId))return res.status(400).json({error:'A valid repository and failed run ID are required.'});
  if(!branch||branch.length>200||! /^[A-Za-z0-9._/-]+$/.test(branch)||branch.includes('..'))return res.status(400).json({error:'A valid build branch is required.'});
  if(!process.env.GROQ_API_KEY)throw Error('Automatic repair needs GROQ_API_KEY in Render.');
  const jobs=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+runId+'/jobs');
@@ -297,7 +300,7 @@ app.post('/api/flutter-auto-fix',async(req,res)=>{try{
  const pubspec=Buffer.from(pubspecFile.content||'','base64').toString('utf8');
  const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix the specific compile/build error shown in the logs while preserving the intended app. Use Flutter SDK and packages already declared in pubspec.yaml only. Do not change the app purpose or remove its embedded HTML WebView. No markdown fences or explanations.'},{role:'user',content:'Repair this Flutter source for the current failed build. The build is for branch '+branch+'.\\nBUILD LOG:\\n'+logs+'\\nPUBSPEC:\\n'+pubspec+'\\nSOURCE FILE:\\n'+source}]})});
  const ai=await aiResponse.json();if(!aiResponse.ok)throw Error(ai.error?.message||'AI could not repair the source.');
- const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\\s*```(?:dart)?\\s*/i,'').replace(/\\s*```\\s*$/,'').trim();
+ const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\s*```(?:dart)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
  if(!fixed.includes('void main(')||!fixed.includes('MaterialApp')||fixed.length<200)throw Error('The automatic repair did not produce valid Flutter source.');
  await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart',{method:'PUT',body:JSON.stringify({message:'Vell AI automatic repair for failed Flutter APK build',content:Buffer.from(fixed).toString('base64'),sha:file.sha,branch})});
  res.json({ok:true,branch,message:'Vell AI inspected the failing build logs, repaired the Flutter source on the same build branch, and triggered a fresh build automatically.'});
@@ -305,7 +308,7 @@ app.post('/api/flutter-auto-fix',async(req,res)=>{try{
 
 app.get('/api/flutter-apk-zip',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim(),id=String(req.query.artifactId||'').trim();
- if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full)||!/^\\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});
+ if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});
  const response=await fetch('https://api.github.com/repos/'+full+'/actions/artifacts/'+id+'/zip',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
  if(!response.ok)throw Error('The build ZIP is not available yet (HTTP '+response.status+').');
  const archive=Buffer.from(await response.arrayBuffer());

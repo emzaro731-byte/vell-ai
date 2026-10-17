@@ -7,6 +7,7 @@ const supabaseKey=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SE
 const supabaseConfigured=!!(supabaseUrl&&supabaseKey);
 const supabase=supabaseConfigured?createClient(supabaseUrl,supabaseKey,{auth:{persistSession:false,autoRefreshToken:false}}):null;
 app.get('/api/health',(_,r)=>r.json({ok:true,aiConfigured:!!process.env.GROQ_API_KEY,githubConfigured:!!process.env.GITHUB_TOKEN,renderConfigured:!!(process.env.RENDER_API_KEY&&process.env.RENDER_OWNER_ID),supabaseConfigured}));
+app.get('/api/messenger-config',(_,res)=>res.json({url:supabaseUrl||'',anonKey:process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''}));
 app.get('/api/supabase/status',async(_,res)=>{if(!supabase)return res.status(503).json({ok:false,configured:false,error:'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Render Environment.'});try{const {error}=await supabase.from('vell_projects').select('id',{head:true,count:'exact'});if(error)throw error;res.json({ok:true,configured:true,databaseConnected:true,message:'Supabase is connected.'});}catch(e){res.status(503).json({ok:false,configured:true,databaseConnected:false,error:e.message||'Supabase connection failed. Check the vell_projects table and database permissions.'})}});
 async function generateHtml(prompt,existingHtml=''){
  if(!process.env.GROQ_API_KEY)throw Object.assign(Error('Add GROQ_API_KEY in Render Environment.'),{status:503});
@@ -16,6 +17,22 @@ async function generateHtml(prompt,existingHtml=''){
  if(!/^<!doctype html|^<html/i.test(html))throw Object.assign(Error('AI returned invalid HTML. Try a clearer prompt.'),{status:502});
  return html;
 }
+
+// Generate a multi-file full-stack starter project. This endpoint returns source files only;
+// deployment remains a separate explicit action so generated code can be reviewed first.
+app.post('/api/generate-project',async(req,res)=>{try{
+ const prompt=String(req.body.prompt||'').trim();
+ if(!prompt)return res.status(400).json({error:'Describe the app you want to generate.'});
+ if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});
+ if(!process.env.GROQ_API_KEY)return res.status(503).json({error:'Add GROQ_API_KEY in Render Environment.'});
+ const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.2,max_tokens:12000,response_format:{type:'json_object'},messages:[{role:'system',content:'You are Vell AI full-stack project generator. Return ONLY valid JSON with keys name, description, files. files must be an array of objects with path and content strings. Generate a coherent runnable starter app, not a static mockup, appropriate to the request. Prefer Node.js + Express backend and plain HTML/CSS/JS frontend unless the prompt specifies a framework. Include package.json, README.md, .env.example, server code, frontend files, validation, clear API endpoints, and safe server-side handling of secrets. For database/auth/realtime requests, include schema/migrations and explain required environment variables in README. Never include real credentials, fake deployment URLs, or claim external services are configured. Keep paths relative, no absolute paths, no .. segments, and limit to 12 files. Output complete file contents.'},{role:'user',content:'Generate a full-stack project starter for this request.\n'+prompt}]})});
+ const data=await r.json();if(!r.ok)throw Object.assign(Error(data.error?.message||'Project generation failed.'),{status:r.status});
+ let out;try{out=JSON.parse(data.choices?.[0]?.message?.content||'{}')}catch{throw Object.assign(Error('AI returned invalid project JSON. Please try again.'),{status:502})}
+ if(!Array.isArray(out.files)||!out.files.length)throw Object.assign(Error('AI returned no project files. Try a more specific prompt.'),{status:502});
+ const files=out.files.filter(f=>f&&typeof f.path==='string'&&typeof f.content==='string'&&!f.path.startsWith('/')&&!f.path.split('/').includes('..')).slice(0,12);
+ if(!files.length)throw Object.assign(Error('Generated project paths were invalid.'),{status:502});
+ res.json({ok:true,name:String(out.name||'vell-generated-app').slice(0,80),description:String(out.description||'Full-stack starter project').slice(0,300),files,message:'Generated '+files.length+' project files. Review the code and configure .env before deployment.'});
+ }catch(e){res.status(e.status||500).json({error:e.message||'Full-stack project generation failed.'})}});
 app.post('/api/generate',async(req,res)=>{try{const prompt=String(req.body.prompt||'').trim();if(!prompt)return res.status(400).json({error:'Describe the website you want.'});if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});res.json({html:await generateHtml(prompt,String(req.body.existingHtml||'').slice(0,140000))})}catch(e){res.status(e.status||500).json({error:e.message||'Could not generate website. Try again.'})}});
 app.post('/api/chat',async(req,res)=>{try{
  const message=String(req.body.message||'').trim();

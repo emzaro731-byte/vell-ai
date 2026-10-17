@@ -37,22 +37,27 @@ alter table public.profiles enable row level security;
 alter table public.chats enable row level security;
 alter table public.chat_members enable row level security;
 alter table public.messages enable row level security;
+-- SECURITY DEFINER helper avoids recursive RLS policies on chat membership.
+create or replace function public.is_chat_member(target_chat uuid, target_user uuid default auth.uid())
+returns boolean language sql stable security definer set search_path=public
+as $ select exists(select 1 from public.chat_members where chat_id=target_chat and user_id=target_user); $;
+grant execute on function public.is_chat_member(uuid,uuid) to authenticated;
 drop policy if exists "profiles visible to authenticated users" on public.profiles;
 create policy "profiles visible to authenticated users" on public.profiles for select to authenticated using (true);
 drop policy if exists "users edit own profile" on public.profiles;
 create policy "users edit own profile" on public.profiles for all to authenticated using (auth.uid()=id) with check (auth.uid()=id);
 drop policy if exists "members read chats" on public.chats;
-create policy "members read chats" on public.chats for select to authenticated using (exists(select 1 from public.chat_members m where m.chat_id=id and m.user_id=auth.uid()));
+create policy "members read chats" on public.chats for select to authenticated using (created_by=auth.uid() or public.is_chat_member(id,auth.uid()));
 drop policy if exists "signed in users create chats" on public.chats;
 create policy "signed in users create chats" on public.chats for insert to authenticated with check (created_by=auth.uid());
 drop policy if exists "members read membership" on public.chat_members;
-create policy "members read membership" on public.chat_members for select to authenticated using (exists(select 1 from public.chat_members m where m.chat_id=chat_members.chat_id and m.user_id=auth.uid()));
+create policy "members read membership" on public.chat_members for select to authenticated using (public.is_chat_member(chat_id,auth.uid()));
 drop policy if exists "chat creator adds members" on public.chat_members;
-create policy "chat creator adds members" on public.chat_members for insert to authenticated with check (exists(select 1 from public.chats c where c.id=chat_id and c.created_by=auth.uid()) or user_id=auth.uid());
+create policy "chat creator adds members" on public.chat_members for insert to authenticated with check (user_id=auth.uid() or exists(select 1 from public.chats c where c.id=chat_id and c.created_by=auth.uid()));
 drop policy if exists "members read messages" on public.messages;
-create policy "members read messages" on public.messages for select to authenticated using (exists(select 1 from public.chat_members m where m.chat_id=messages.chat_id and m.user_id=auth.uid()));
+create policy "members read messages" on public.messages for select to authenticated using (public.is_chat_member(chat_id,auth.uid()));
 drop policy if exists "members send messages" on public.messages;
-create policy "members send messages" on public.messages for insert to authenticated with check (sender_id=auth.uid() and exists(select 1 from public.chat_members m where m.chat_id=messages.chat_id and m.user_id=auth.uid()));
+create policy "members send messages" on public.messages for insert to authenticated with check (sender_id=auth.uid() and public.is_chat_member(chat_id,auth.uid()));
 -- Enable realtime for messages (ignore duplicate publication membership if already enabled).
 do $$ begin alter publication supabase_realtime add table public.messages; exception when duplicate_object then null; when undefined_object then null; end $$;
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)

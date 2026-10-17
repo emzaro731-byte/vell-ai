@@ -5,210 +5,220 @@
 <title>TikTok‑Style Feed</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root {
-    --bg:#111;
-    --text:#fff;
-    --accent:#ff0050;
-    --overlay:#0008;
-    --icon-size:1.6rem;
-    --font-sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{
-    font-family:var(--font-sans);
-    background:var(--bg);
-    color:var(--text);
-    overflow-y:scroll;
-    -webkit-overflow-scrolling:touch;
-  }
-  header{
-    position:fixed;
-    top:0;left:0;right:0;
-    height:3rem;
-    background:rgba(0,0,0,.6);
-    display:flex;
-    align-items:center;
-    padding:0 1rem;
-    z-index:10;
-  }
-  header h1{
-    font-size:1.2rem;
-    font-weight:600;
-  }
-  main{
-    margin-top:3rem;
-  }
-  .video-card{
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; font-family:system-ui,Arial,sans-serif; background:#000; color:#fff; overflow-y:scroll; scroll-snap-type:y mandatory; }
+  .feed { width:100%; }
+  .video-card {
     position:relative;
-    width:100%;
     height:100vh;
+    width:100%;
+    scroll-snap-align:start;
     overflow:hidden;
+    background:#111;
   }
-  .video-card video{
+  .video-card video {
     width:100%;
     height:100%;
     object-fit:cover;
   }
-  .overlay{
+  .overlay {
     position:absolute;
     inset:0;
-    background:var(--overlay);
     display:flex;
     flex-direction:column;
-    justify-content:flex-end;
-    padding:1rem;
+    justify-content:space-between;
     pointer-events:none;
   }
-  .info{
+  .info {
+    padding:1rem;
     pointer-events:auto;
-    max-width:70%;
   }
-  .info h2{
-    font-size:1rem;
-    margin-bottom:.3rem;
-  }
-  .info p{
-    font-size:.85rem;
-    line-height:1.2;
-  }
-  .actions{
-    position:absolute;
-    right:1rem;
-    bottom:4rem;
+  .info h2 { margin:0; font-size:1.2rem; }
+  .info p { margin:0.2rem 0 0; font-size:0.9rem; opacity:0.8; }
+  .controls {
     display:flex;
     flex-direction:column;
-    gap:.8rem;
     align-items:center;
+    margin:0 1rem 1rem 0;
     pointer-events:auto;
   }
-  .action-btn{
+  .controls button {
     background:none;
     border:none;
-    color:var(--text);
-    font-size:var(--icon-size);
+    color:#fff;
+    margin:0.5rem 0;
+    font-size:1.5rem;
+    cursor:pointer;
     display:flex;
     flex-direction:column;
     align-items:center;
+  }
+  .controls button span {
+    font-size:0.8rem;
+    margin-top:0.2rem;
+  }
+  .controls button.liked { color:#ff2b6c; }
+  .header {
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:3rem;
+    background:rgba(0,0,0,0.6);
+    display:flex;
+    align-items:center;
+    padding:0 1rem;
+    z-index:10;
+    backdrop-filter:blur(5px);
+  }
+  .header h1 { margin:0; font-size:1.2rem; }
+  .create-btn {
+    position:fixed;
+    bottom:1.5rem;
+    right:1.5rem;
+    width:3.5rem;
+    height:3.5rem;
+    border-radius:50%;
+    background:#ff2b6c;
+    border:none;
+    color:#fff;
+    font-size:2rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     cursor:pointer;
-  }
-  .action-btn span{
-    font-size:.75rem;
-    margin-top:.2rem;
-  }
-  .liked{
-    color:var(--accent);
-  }
-  @media (min-width:600px){
-    .actions{
-      right:2rem;
-    }
-    .info{
-      max-width:60%;
-    }
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    z-index:10;
   }
 </style>
 </head>
 <body>
-<header>
+<header class="header" aria-label="App header">
   <h1>TikTok Demo</h1>
 </header>
-<main id="feed" aria-live="polite"></main>
 
-<script>
-const videos = [
-  {
-    src:"https://www.w3schools.com/html/mov_bbb.mp4",
-    user:"@alice",
-    description:"Sunset vibes 🌅",
-    likes:124,
-    comments:8
-  },
-  {
-    src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-    user:"@bob",
-    description:"Blooming flowers!",
-    likes:87,
-    comments:12
-  },
-  {
-    src:"https://media.w3.org/2010/05/sintel/trailer_hd.mp4",
-    user:"@charlie",
-    description:"Adventure time 🚀",
-    likes:203,
-    comments:34
-  }
-];
-
-// Simulate infinite scroll by repeating the array
-let loadCount = 0;
-function createCard(data){
-  const card=document.createElement('article');
-  card.className='video-card';
-  card.innerHTML=`
-    <video src="${data.src}" muted autoplay loop playsinline></video>
+<main class="feed" aria-live="polite">
+  <section class="video-card" data-id="1">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" muted loop playsinline></video>
     <div class="overlay">
       <div class="info">
-        <h2>${data.user}</h2>
-        <p>${data.description}</p>
+        <h2>@alice</h2>
+        <p>Sunset vibes 🌅 #nature</p>
       </div>
-      <div class="actions">
-        <button class="action-btn like-btn" aria-label="Like" data-liked="false">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          <span class="like-count">${data.likes}</span>
+      <div class="controls" aria-label="Video actions">
+        <button class="like-btn" aria-pressed="false" aria-label="Like">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <span class="count">0</span>
         </button>
-        <button class="action-btn comment-btn" aria-label="Comment">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2v9H5v2c0 .55.45 1 1 1h12l4 4V7c0-.55-.45-1-1-1zM3 4h14c.55 0 1 .45 1 1v9c0 .55-.45 1-1 1H5l-4 4V5c0-.55.45-1 1-1z"/></svg>
-          <span>${data.comments}</span>
+        <button class="comment-btn" aria-label="Comment">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+          <span>0</span>
         </button>
-        <button class="action-btn share-btn" aria-label="Share">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a2.5 2.5 0 0 0 0-1.4l7.05-4.11a2.5 2.5 0 1 0-.9-1.5L8 9.79a2.5 2.5 0 1 0 0 4.42l7.15 4.16c.52.48 1.2.78 1.96.78a2.5 2.5 0 1 0 0-5z"/></svg>
-          <span>Share</span>
+        <button class="share-btn" aria-label="Share">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span>0</span>
+        </button>
+        <button class="profile-btn" aria-label="View profile">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
         </button>
       </div>
     </div>
-  `;
-  // Like button interaction
-  const likeBtn=card.querySelector('.like-btn');
-  const likeCountSpan=likeBtn.querySelector('.like-count');
-  likeBtn.addEventListener('click',()=>{
-    const liked=likeBtn.getAttribute('data-liked')==='true';
-    if(liked){
-      likeBtn.setAttribute('data-liked','false');
-      likeBtn.classList.remove('liked');
-      likeCountSpan.textContent=--data.likes;
-    }else{
-      likeBtn.setAttribute('data-liked','true');
-      likeBtn.classList.add('liked');
-      likeCountSpan.textContent=++data.likes;
-    }
+  </section>
+
+  <section class="video-card" data-id="2">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm" muted loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>@bob</h2>
+        <p>Cooking hack! 🍳 #food</p>
+      </div>
+      <div class="controls">
+        <button class="like-btn" aria-pressed="false" aria-label="Like"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="count">0</span></button>
+        <button class="comment-btn" aria-label="Comment"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>0</span></button>
+        <button class="share-btn" aria-label="Share"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg><span>0</span></button>
+        <button class="profile-btn" aria-label="View profile"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="video-card" data-id="3">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.ogv" muted loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>@carla</h2>
+        <p>Dance challenge! 💃 #fun</p>
+      </div>
+      <div class="controls">
+        <button class="like-btn" aria-pressed="false" aria-label="Like"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="count">0</span></button>
+        <button class="comment-btn" aria-label="Comment"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>0</span></button>
+        <button class="share-btn" aria-label="Share"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg><span>0</span></button>
+        <button class="profile-btn" aria-label="View profile"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg></button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="create-btn" aria-label="Create new video">+</button>
+
+<script>
+  // Auto‑play/pause based on visibility
+  const videos = document.querySelectorAll('video');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        video.play().catch(()=>{}); // ignore autoplay restrictions
+      } else {
+        video.pause();
+      }
+    });
+  }, {threshold: 0.75});
+  videos.forEach(v => observer.observe(v));
+
+  // Like button logic
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pressed = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', !pressed);
+      btn.classList.toggle('liked', !pressed);
+      const countSpan = btn.querySelector('.count');
+      let count = parseInt(countSpan.textContent,10);
+      count = pressed ? count-1 : count+1;
+      countSpan.textContent = count;
+    });
   });
-  // Share interaction
-  const shareBtn=card.querySelector('.share-btn');
-  shareBtn.addEventListener('click',()=>{
-    alert('Share link copied to clipboard (simulated).');
+
+  // Simple comment interaction (placeholder)
+  document.querySelectorAll('.comment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const comment = prompt('Add a comment (demo only):');
+      if (comment) {
+        const countSpan = btn.querySelector('span');
+        let count = parseInt(countSpan.textContent,10);
+        countSpan.textContent = count+1;
+        console.log('New comment:', comment);
+      }
+    });
   });
-  return card;
-}
-function loadMore(){
-  const fragment=document.createDocumentFragment();
-  for(let i=0;i<videos.length;i++){
-    const idx=(loadCount*videos.length+i)%videos.length;
-    const data=Object.assign({},videos[idx]); // clone
-    fragment.appendChild(createCard(data));
-  }
-  document.getElementById('feed').appendChild(fragment);
-  loadCount++;
-}
-function init(){
-  loadMore();
-  // Simple infinite scroll
-  window.addEventListener('scroll',()=>{
-    if(window.innerHeight+window.scrollY>=document.body.offsetHeight-100){
-      loadMore();
-    }
+
+  // Share button placeholder
+  document.querySelectorAll('.share-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert('Share functionality is not implemented in this demo.');
+    });
   });
-}
-document.addEventListener('DOMContentLoaded',init);
+
+  // Profile button placeholder
+  document.querySelectorAll('.profile-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert('Profile view is not implemented in this demo.');
+    });
+  });
+
+  // Create button placeholder
+  document.querySelector('.create-btn').addEventListener('click', () => {
+    alert('Create new video flow is not implemented in this demo.');
+  });
 </script>
 </body>
 </html>

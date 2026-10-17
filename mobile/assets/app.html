@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Upgrade Your Plan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --primary:#0066ff;
+  --primary-dark:#004fbf;
+  --bg:#f9fafb;
+  --text:#212529;
+  --card-bg:#fff;
+  --card-shadow:0 2px 8px rgba(0,0,0,.1);
+  --radius:8px;
+  --transition:.3s ease;
+  --max-width:1200px;
+}
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+body{
+  margin:0;
+  font-family:system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.6;
+}
+header{
+  background:var(--primary);
+  color:#fff;
+  padding:1rem 2rem;
+}
+header h1{
+  margin:0;
+  font-size:1.5rem;
+}
+main{
+  max-width:var(--max-width);
+  margin:2rem auto;
+  padding:0 1rem;
+}
+section.hero{
+  text-align:center;
+  margin-bottom:2rem;
+}
+section.hero h2{
+  font-size:2rem;
+  margin-bottom:.5rem;
+}
+section.hero p{
+  font-size:1rem;
+  color:#555;
+}
+.plan-grid{
+  display:grid;
+  gap:1.5rem;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+}
+.plan-card{
+  background:var(--card-bg);
+  border-radius:var(--radius);
+  box-shadow:var(--card-shadow);
+  padding:1.5rem;
+  display:flex;
+  flex-direction:column;
+}
+.plan-card h3{
+  margin-top:0;
+  font-size:1.25rem;
+}
+.plan-card .price{
+  font-size:2rem;
+  font-weight:700;
+  margin:1rem 0;
+  color:var(--primary);
+}
+.plan-card ul{
+  list-style:none;
+  padding:0;
+  margin:0 0 1.5rem 0;
+  flex-grow:1;
+}
+.plan-card ul li{
+  margin-bottom:.5rem;
+  display:flex;
+  align-items:center;
+}
+.plan-card ul li::before{
+  content:"✔";
+  color:var(--primary);
+  margin-right:.5rem;
+}
+.plan-card button{
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  padding:.75rem;
+  border-radius:var(--radius);
+  cursor:pointer;
+  font-size:1rem;
+  transition:background var(--transition);
+}
+.plan-card button:hover,
+.plan-card button:focus{
+  background:var(--primary-dark);
+}
+footer{
+  text-align:center;
+  padding:1rem;
+  font-size:.875rem;
+  color:#777;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:1rem;
+}
+.modal[aria-hidden="false"]{
+  display:flex;
+}
+.modal-content{
+  background:#fff;
+  border-radius:var(--radius);
+  max-width:500px;
+  width:100%;
+  padding:2rem;
+  position:relative;
+}
+.modal-content h2{
+  margin-top:0;
+}
+.modal-content button.close{
+  position:absolute;
+  top:.5rem;
+  right:.5rem;
+  background:none;
+  border:none;
+  font-size:1.5rem;
+  line-height:1;
+  cursor:pointer;
+}
+@media (prefers-reduced-motion: reduce){
+  *{
+    transition:none !important;
+  }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Acme SaaS</h1>
+</header>
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <h2 id="hero-title">Upgrade Your Plan</h2>
+    <p>Select the plan that fits your needs and enjoy more features.</p>
+  </section>
+
+  <section class="plan-grid" aria-label="Available plans">
+    <article class="plan-card" aria-labelledby="plan-basic-title">
+      <h3 id="plan-basic-title">Basic</h3>
+      <p class="price">$9<span style="font-size:.5em;">/mo</span></p>
+      <ul>
+        <li>5 Projects</li>
+        <li>10 GB Storage</li>
+        <li>Email Support</li>
+      </ul>
+      <button data-plan="Basic">Select Basic</button>
+    </article>
+
+    <article class="plan-card" aria-labelledby="plan-pro-title">
+      <h3 id="plan-pro-title">Pro</h3>
+      <p class="price">$29<span style="font-size:.5em;">/mo</span></p>
+      <ul>
+        <li>Unlimited Projects</li>
+        <li>100 GB Storage</li>
+        <li>Priority Email Support</li>
+        <li>Advanced Analytics</li>
+      </ul>
+      <button data-plan="Pro">Select Pro</button>
+    </article>
+
+    <article class="plan-card" aria-labelledby="plan-enterprise-title">
+      <h3 id="plan-enterprise-title">Enterprise</h3>
+      <p class="price">Contact Us</p>
+      <ul>
+        <li>Custom Projects</li>
+        <li>Unlimited Storage</li>
+        <li>Dedicated Account Manager</li>
+        <li>24/7 Phone Support</li>
+      </ul>
+      <button data-plan="Enterprise">Contact Sales</button>
+    </article>
+  </section>
+</main>
+
+<div class="modal" id="upgrade-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-hidden="true">
+  <div class="modal-content">
+    <button class="close" aria-label="Close dialog">&times;</button>
+    <h2 id="modal-title">Confirm Upgrade</h2>
+    <p id="modal-body">You are about to upgrade to the <strong id="selected-plan"></strong> plan.</p>
+    <p>This action will change your billing cycle and give you immediate access to the new features.</p>
+    <button id="confirm-upgrade" style="background:var(--primary);color:#fff;border:none;padding:.75rem 1.5rem;border-radius:var(--radius);cursor:pointer;">Proceed</button>
+  </div>
+</div>
+
+<footer>
+  © 2026 Acme SaaS. All rights reserved.
+</footer>
+
+<script>
+(() => {
+  const modal = document.getElementById('upgrade-modal');
+  const selectedPlanEl = document.getElementById('selected-plan');
+  const closeBtn = modal.querySelector('.close');
+  const confirmBtn = document.getElementById('confirm-upgrade');
+
+  // Open modal with plan name
+  function openModal(plan) {
+    selectedPlanEl.textContent = plan;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    closeBtn.focus();
+  }
+
+  // Close modal
+  function closeModal() {
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  // Click handlers for plan buttons
+  document.querySelectorAll('.plan-card button').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const plan = e.currentTarget.dataset.plan;
+      if (plan === 'Enterprise') {
+        // For Enterprise we just open a mailto link
+        window.location.href = 'mailto:sales@acme.com?subject=Enterprise%20Plan%20Inquiry';
+        return;
+      }
+      openModal(plan);
+    });
+  });
+
+  // Close modal on button or overlay click
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Keyboard accessibility
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+      closeModal();
+    }
+  });
+
+  // Simulated upgrade action
+  confirmBtn.addEventListener('click', () => {
+    alert('Your plan has been updated. (This is a simulated action.)');
+    closeModal();
+  });
+})();
+</script>
+</body>
+</html>

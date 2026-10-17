@@ -227,7 +227,7 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  await putFile('mobile/lib/main.dart',dart,'Package exact preview in Flutter WebView');
  await putFile('mobile/assets/app.html',safeHtml,'Embed exact generated preview in Android app');
  await gh('https://api.github.com/repos/'+fullRepo+'/actions/workflows/flutter-android.yml/dispatches',{method:'POST',body:JSON.stringify({ref:branch})});
- res.status(202).json({ok:true,branch,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
+ res.status(202).json({ok:true,branch,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,repositoryName:fullRepo,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
 }catch(e){res.status(e.status||500).json({error:(e.message||'Could not create preview-based Flutter APK.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
 
 // Read text files from a ZIP using Node's built-in zlib. Used to extract build logs

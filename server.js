@@ -1,4 +1,4 @@
-const express=require('express'),path=require('path');
+const express=require('express'),path=require('path'),zlib=require('zlib');
 const { createClient } = require('@supabase/supabase-js');
 const app=express();app.use(express.json({limit:'2mb'}));app.use(express.static(path.join(__dirname,'public')));
 const PORT=process.env.PORT||10000;
@@ -226,52 +226,94 @@ app.post('/api/build-flutter-apk',async(req,res)=>{let repoUrl='';try{
  await gh('https://api.github.com/repos/'+fullRepo+'/actions/workflows/flutter-android.yml/dispatches',{method:'POST',body:JSON.stringify({ref:branch})});
  res.status(202).json({ok:true,branch,message:'The exact preview has been packaged on an isolated branch in the existing Vell AI repository. GitHub Actions is building the APK now.',repository:repoUrl,actionsUrl:'https://github.com/'+fullRepo+'/actions',workflowUrl:'https://github.com/'+fullRepo+'/actions/workflows/flutter-android.yml',sourceFile:'https://github.com/'+fullRepo+'/blob/'+branch+'/mobile/lib/main.dart'});
 }catch(e){res.status(e.status||500).json({error:(e.message||'Could not create preview-based Flutter APK.')+(repoUrl?' Flutter source repository: '+repoUrl:'')})}});
+
+// Read text files from a ZIP using Node's built-in zlib. Used to extract build logs
+// and the actual APK ZIP from the GitHub Actions artifact envelope.
+function readZipEntries(input){
+ const b=Buffer.isBuffer(input)?input:Buffer.from(input);let eocd=-1;
+ for(let i=b.length-22;i>=Math.max(0,b.length-65557);i--){if(b.readUInt32LE(i)===0x06054b50){eocd=i;break}}
+ if(eocd<0)throw Error('The build artifact is not a valid ZIP archive.');
+ const count=b.readUInt16LE(eocd+10),central=b.readUInt32LE(eocd+16),out=[];let p=central;
+ for(let i=0;i<count&&p+46<=b.length;i++){
+  if(b.readUInt32LE(p)!==0x02014b50)break;
+  const method=b.readUInt16LE(p+10),compressed=b.readUInt32LE(p+20),nameLen=b.readUInt16LE(p+28),extraLen=b.readUInt16LE(p+30),commentLen=b.readUInt16LE(p+32),offset=b.readUInt32LE(p+42);
+  const name=b.toString('utf8',p+46,p+46+nameLen);p+=46+nameLen+extraLen+commentLen;
+  if(offset+30>b.length||b.readUInt32LE(offset)!==0x04034b50)continue;
+  const localName=b.readUInt16LE(offset+26),localExtra=b.readUInt16LE(offset+28),dataStart=offset+30+localName+localExtra;
+  if(dataStart+compressed>b.length)continue;
+  const chunk=b.subarray(dataStart,dataStart+compressed);
+  try{const data=method===0?Buffer.from(chunk):method===8?zlib.inflateRawSync(chunk):null;if(data)out.push({name,data})}catch(_){}
+ }
+ return out;
+}
+
 app.get('/api/flutter-build-status',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim();
- if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
- const branch=String(req.query.branch||'').trim();const data=await gh('https://api.github.com/repos/'+full+'/actions/runs?per_page=1'+(branch?'&branch='+encodeURIComponent(branch):''));
+ if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full))return res.status(400).json({error:'A valid owner/repository is required.'});
+ const branch=String(req.query.branch||'').trim();
+ if(!branch||branch.length>200||! /^[A-Za-z0-9._/-]+$/.test(branch)||branch.includes('..'))return res.status(400).json({error:'A valid build branch is required.'});
+ const endpoint='https://api.github.com/repos/'+full+'/actions/workflows/flutter-android.yml/runs?per_page=1&branch='+encodeURIComponent(branch);
+ const data=await gh(endpoint);
  const run=(data.workflow_runs||[])[0];
- if(!run)return res.json({ok:true,state:'queued',message:'Waiting for GitHub Actions to start the build.'});
- const artifacts=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/artifacts');
- const artifact=(artifacts.artifacts||[]).find(a=>!a.expired&&a.name);
+ if(!run)return res.json({ok:true,state:'queued',branch,runId:null,message:'Waiting for the Android build runner to start.'});
  const state=run.status==='completed'?(run.conclusion==='success'?'success':'failed'):(run.status||'queued');
- let errorSummary='';
+ let artifact=null,errorSummary='';
+ if(state==='success'||state==='failed'){
+  try{
+   const artifacts=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/artifacts');
+   artifact=(artifacts.artifacts||[]).find(a=>!a.expired&&a.name==='vell-ai-studio-apk-zip')||(artifacts.artifacts||[]).find(a=>!a.expired&&a.name);
+  }catch(_){}
+ }
  if(state==='failed'){
   try{
    const jobs=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+run.id+'/jobs');
    const failed=(jobs.jobs||[]).find(j=>j.conclusion==='failure');
-   if(failed)errorSummary='Build failed in step: '+failed.name+'. Open logs for details, or retry the build.';
+   if(failed){
+    const failedStep=(failed.steps||[]).find(step=>step.conclusion==='failure');
+    errorSummary='Failed at '+(failedStep?.name||failed.name)+'. Vell AI will inspect the build logs and attempt an automatic repair.';
+   }
   }catch(_){}
  }
- res.json({ok:true,state,runId:run.id,runNumber:run.run_number,runUrl:run.html_url,repository:full,message:state==='success'?'APK built successfully. Your ZIP is ready.':state==='failed'?(errorSummary||'Build failed.'):state==='in_progress'?'Flutter is compiling your APK. This can take a few minutes.':'Preparing the cloud build…',artifactId:artifact?.id||null,artifactName:artifact?.name||null,downloadUrl:artifact&&!artifact.expired?'/api/flutter-apk-zip?repository='+encodeURIComponent(full)+'&artifactId='+artifact.id:null});
+ res.json({ok:true,state,branch,runId:run.id,runNumber:run.run_number,createdAt:run.created_at,runUrl:run.html_url,repository:full,message:state==='success'?'APK built successfully. Your ZIP is ready.':state==='failed'?(errorSummary||'The Android build failed. Automatic repair can inspect the build logs.'):state==='in_progress'?'Flutter is compiling your APK. Keep this page open; progress updates automatically.':'Preparing the cloud build…',artifactId:artifact?.id||null,artifactName:artifact?.name||null,downloadUrl:artifact&&!artifact.expired?'/api/flutter-apk-zip?repository='+encodeURIComponent(full)+'&artifactId='+artifact.id:null});
  }catch(e){res.status(500).json({error:e.message||'Could not check the APK build.'})}});
 
 app.post('/api/flutter-auto-fix',async(req,res)=>{try{
- const full=String(req.body.repository||'').trim(),runId=String(req.body.runId||'').trim();
- if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(runId))return res.status(400).json({error:'A valid repository and failed run ID are required.'});
+ const full=String(req.body.repository||'').trim(),runId=String(req.body.runId||'').trim(),branch=String(req.body.branch||'').trim();
+ if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full)||!/^\\d+$/.test(runId))return res.status(400).json({error:'A valid repository and failed run ID are required.'});
+ if(!branch||branch.length>200||! /^[A-Za-z0-9._/-]+$/.test(branch)||branch.includes('..'))return res.status(400).json({error:'A valid build branch is required.'});
  if(!process.env.GROQ_API_KEY)throw Error('Automatic repair needs GROQ_API_KEY in Render.');
  const jobs=await gh('https://api.github.com/repos/'+full+'/actions/runs/'+runId+'/jobs');
  const failed=(jobs.jobs||[]).find(j=>j.conclusion==='failure');
- if(!failed) return res.status(409).json({error:'No failed build job was found to repair.'});
+ if(!failed)return res.status(409).json({error:'No failed build job was found to repair.'});
  const logResponse=await fetch('https://api.github.com/repos/'+full+'/actions/jobs/'+failed.id+'/logs',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
- const logs=logResponse.ok?(await logResponse.text()).slice(-18000):'Build failed; logs unavailable.';
- const file=await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart');
+ let logs='Build failed; logs unavailable.';
+ if(logResponse.ok){
+  const logBytes=Buffer.from(await logResponse.arrayBuffer());
+  try{logs=readZipEntries(logBytes).map(x=>'--- '+x.name+' ---\\n'+x.data.toString('utf8')).join('\\n').slice(-24000)||logs}catch(_){logs=logBytes.toString('utf8').slice(-24000)||logs}
+ }
+ const file=await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart?ref='+encodeURIComponent(branch));
  const source=Buffer.from(file.content||'','base64').toString('utf8');
- const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix compile errors shown in the build log while preserving the app features. Use Flutter SDK and dependencies already in pubspec.yaml only. No markdown fences or explanations.'},{role:'user',content:'Fix this Flutter source based on the failing build log.\nBUILD LOG:\n'+logs+'\nSOURCE FILE:\n'+source}]})});
+ const pubspecFile=await gh('https://api.github.com/repos/'+full+'/contents/mobile/pubspec.yaml?ref='+encodeURIComponent(branch));
+ const pubspec=Buffer.from(pubspecFile.content||'','base64').toString('utf8');
+ const aiResponse=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+process.env.GROQ_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({model:'openai/gpt-oss-120b',temperature:.1,max_tokens:10000,messages:[{role:'system',content:'You are repairing a Flutter Android release build. Return ONLY the complete corrected Dart source file. Fix the specific compile/build error shown in the logs while preserving the intended app. Use Flutter SDK and packages already declared in pubspec.yaml only. Do not change the app purpose or remove its embedded HTML WebView. No markdown fences or explanations.'},{role:'user',content:'Repair this Flutter source for the current failed build. The build is for branch '+branch+'.\\nBUILD LOG:\\n'+logs+'\\nPUBSPEC:\\n'+pubspec+'\\nSOURCE FILE:\\n'+source}]})});
  const ai=await aiResponse.json();if(!aiResponse.ok)throw Error(ai.error?.message||'AI could not repair the source.');
- const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\s*```(?:dart)?\s*/i,'').replace(/\s*```\s*$/,'').trim();
+ const fixed=String(ai.choices?.[0]?.message?.content||'').replace(/^\\s*```(?:dart)?\\s*/i,'').replace(/\\s*```\\s*$/,'').trim();
  if(!fixed.includes('void main(')||!fixed.includes('MaterialApp')||fixed.length<200)throw Error('The automatic repair did not produce valid Flutter source.');
- await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart',{method:'PUT',body:JSON.stringify({message:'Vell AI automatic repair for failed Flutter APK build',content:Buffer.from(fixed).toString('base64'),sha:file.sha,branch:'main'})});
- res.json({ok:true,message:'Vell AI detected the build failure, repaired the Flutter source, and committed the fix. A new APK build has started automatically.'});
+ await gh('https://api.github.com/repos/'+full+'/contents/mobile/lib/main.dart',{method:'PUT',body:JSON.stringify({message:'Vell AI automatic repair for failed Flutter APK build',content:Buffer.from(fixed).toString('base64'),sha:file.sha,branch})});
+ res.json({ok:true,branch,message:'Vell AI inspected the failing build logs, repaired the Flutter source on the same build branch, and triggered a fresh build automatically.'});
  }catch(e){res.status(500).json({error:e.message||'Automatic APK repair failed.'})}});
 
 app.get('/api/flutter-apk-zip',async(req,res)=>{try{
  const full=String(req.query.repository||'').trim(),id=String(req.query.artifactId||'').trim();
- if(!/^[-A-Za-z0-9_.]+\/[-A-Za-z0-9_.]+$/.test(full)||!/^\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});
+ if(!/^[-A-Za-z0-9_.]+\\/[-A-Za-z0-9_.]+$/.test(full)||!/^\\d+$/.test(id))return res.status(400).json({error:'A valid repository and artifact ID are required.'});
  const response=await fetch('https://api.github.com/repos/'+full+'/actions/artifacts/'+id+'/zip',{headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
- if(!response.ok)throw Error('GitHub could not download this artifact (HTTP '+response.status+').');
- res.setHeader('Content-Type','application/zip');res.setHeader('Content-Disposition','attachment; filename="vell-android-apk.zip"');
- const bytes=Buffer.from(await response.arrayBuffer());res.setHeader('Content-Length',bytes.length);res.end(bytes);
+ if(!response.ok)throw Error('The build ZIP is not available yet (HTTP '+response.status+').');
+ const archive=Buffer.from(await response.arrayBuffer());
+ const entries=readZipEntries(archive);
+ const finalZip=entries.find(x=>x.name==='Vell-AI-Studio-APK.zip'||x.name.endsWith('/Vell-AI-Studio-APK.zip'));
+ const output=finalZip?finalZip.data:archive;
+ res.setHeader('Content-Type','application/zip');res.setHeader('Content-Disposition','attachment; filename="Vell-AI-Studio-APK.zip"');
+ res.setHeader('Content-Length',output.length);res.end(output);
  }catch(e){res.status(500).json({error:e.message||'Could not download the APK ZIP.'})}});
 
 app.post('/api/publish',async(req,res)=>{try{const token=process.env.GITHUB_TOKEN,repo=process.env.GITHUB_REPO,branch=process.env.GITHUB_BRANCH||'main';if(!token||!repo)return res.status(503).json({error:'Set GITHUB_TOKEN and GITHUB_REPO on Render.'});const html=String(req.body.html||'');if(!/^<!doctype html|^<html/i.test(html.trim())||html.length>500000)return res.status(400).json({error:'A valid HTML website under 500 KB is required.'});const base='https://api.github.com/repos/'+repo;let sha;try{sha=(await gh(base+'/contents/index.html?ref='+encodeURIComponent(branch))).sha}catch(e){if(!String(e.message).includes('Not Found'))throw e}const d=await gh(base+'/contents/index.html',{method:'PUT',body:JSON.stringify({message:'Publish AI-generated website',content:Buffer.from(html).toString('base64'),branch,...(sha?{sha}:{})})});res.json({ok:true,message:'Website committed to GitHub.',commit:d.commit?.html_url})}catch(e){res.status(500).json({error:e.message||'GitHub publishing failed.'})}});

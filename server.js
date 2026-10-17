@@ -33,6 +33,42 @@ app.post('/api/generate-project',async(req,res)=>{try{
  if(!files.length)throw Object.assign(Error('Generated project paths were invalid.'),{status:502});
  res.json({ok:true,name:String(out.name||'vell-generated-app').slice(0,80),description:String(out.description||'Full-stack starter project').slice(0,300),files,message:'Generated '+files.length+' project files. Review the code and configure .env before deployment.'});
  }catch(e){res.status(e.status||500).json({error:e.message||'Full-stack project generation failed.'})}});
+
+app.post('/api/auto-build',async(req,res)=>{let savedPath='';let siteUrl=null;let serviceId=null;let deployError=null;try{
+ const prompt=String(req.body.prompt||'').trim();
+ if(!prompt)return res.status(400).json({error:'Describe the app you want to build.'});
+ if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});
+ if(!process.env.GITHUB_TOKEN)return res.status(503).json({error:'Add GITHUB_TOKEN to Render. It needs contents write access to emzaro731-byte/vell-ai.'});
+ const fullRepo='emzaro731-byte/vell-ai',branch='main';
+ const html=await generateHtml(prompt);
+ const slugBase=prompt.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,28)||'ai-app';
+ const slug=slugBase+'-'+Date.now().toString(36);
+ async function saveRepoFile(filePath,content,message){
+   const url='https://api.github.com/repos/'+fullRepo+'/contents/'+filePath;
+   let sha=null;
+   try{const existing=await gh(url+'?ref='+encodeURIComponent(branch));sha=existing.sha}catch(e){if(!String(e.message).includes('Not Found'))throw e}
+   const body={message,content:Buffer.from(content).toString('base64'),branch,...(sha?{sha}:{})};
+   await gh(url,{method:'PUT',body:JSON.stringify(body)});
+ }
+ const safeHtml=html.replace(/<base\b[^>]*>/gi,'');
+ const appPath='generated-apps/'+slug+'/index.html';
+ await saveRepoFile(appPath,safeHtml,'Build app preview: '+slug);
+ // The latest preview is the single input used by the APK workflow.
+ await saveRepoFile('generated-apps/latest/index.html',safeHtml,'Update latest app preview and trigger Android APK build');
+ savedPath='https://github.com/'+fullRepo+'/tree/'+branch+'/generated-apps/'+slug;
+ let apkWorkflowUrl='https://github.com/'+fullRepo+'/actions/workflows/build-generated-apk.yml';
+ let renderDashboardUrl=null;
+ if(process.env.RENDER_API_KEY&&process.env.RENDER_OWNER_ID){
+   try{
+     const created=await renderApi('https://api.render.com/v1/services',{method:'POST',body:JSON.stringify({type:'static_site',name:('vell-'+slug).slice(0,50),ownerId:process.env.RENDER_OWNER_ID,repo:'https://github.com/'+fullRepo,branch,autoDeployTrigger:'commit',serviceDetails:{buildCommand:'',publishPath:'generated-apps/'+slug}})});
+     const service=created.service||created;serviceId=service.id||null;siteUrl=service.serviceDetails?.url||service.url||null;
+     if(!siteUrl&&serviceId){for(let attempt=0;attempt<3&&!siteUrl;attempt++){try{await new Promise(resolve=>setTimeout(resolve,1200));const latest=await renderApi('https://api.render.com/v1/services/'+encodeURIComponent(serviceId));const item=latest.service||latest;siteUrl=item.serviceDetails?.url||item.url||null;}catch(_){}}}
+     renderDashboardUrl=service.dashboardUrl||null;
+   }catch(e){deployError=e.message||'Render deployment could not be created.'}
+ }else{deployError='Add RENDER_API_KEY and RENDER_OWNER_ID to Render to enable automatic deployment.'}
+ res.status(202).json({ok:true,html:safeHtml,slug,repository:'https://github.com/'+fullRepo,sourcePath:savedPath,previewPath:'https://github.com/'+fullRepo+'/blob/'+branch+'/'+appPath,siteUrl,serviceId,renderDashboardUrl,deployError,apkWorkflowUrl,apkPath:'https://github.com/'+fullRepo+'/tree/'+branch+'/releases/latest',message:'App generated and saved in the existing Vell AI repository. The exact preview has been committed, which starts the APK workflow. '+(siteUrl?'Render deployment created.':'Render deployment status needs attention.')});
+ }catch(e){res.status(e.status||500).json({error:(e.message||'Automatic build failed')+(savedPath?' App source was saved: '+savedPath:'')})}});
+
 app.post('/api/generate',async(req,res)=>{try{const prompt=String(req.body.prompt||'').trim();if(!prompt)return res.status(400).json({error:'Describe the website you want.'});if(prompt.length>8000)return res.status(400).json({error:'Prompt must be under 8,000 characters.'});res.json({html:await generateHtml(prompt,String(req.body.existingHtml||'').slice(0,140000))})}catch(e){res.status(e.status||500).json({error:e.message||'Could not generate website. Try again.'})}});
 app.post('/api/chat',async(req,res)=>{try{
  const message=String(req.body.message||'').trim();

@@ -39,3 +39,14 @@ Add these variables to the Render service environment:
 - `GROQ_API_KEY` — for AI chat and project generation.
 
 Then open the Supabase SQL Editor and run `supabase/messenger-schema.sql`. Enable email/password sign-in in Supabase Authentication. For a production messaging service, review the SQL/storage access policies, configure email confirmation and abuse protection, and add message deletion, blocking/reporting, push notifications, and end-to-end encryption before launch. This starter is not WhatsApp and does not implement end-to-end encryption.
+
+
+## Automatic build, preview, Render deploy, and APK
+In the Vell AI chat, enter a prompt such as **"Build an app for tracking my daily expenses"**. Vell AI generates a self-contained web app, shows the HTML preview in the Builder, saves the named source under `generated-apps/<app-name>/index.html`, and updates `generated-apps/latest/index.html` in this same repository. If `RENDER_API_KEY` and `RENDER_OWNER_ID` are configured on the Vell AI Render service, it also creates a Render Static Site pointing at the named folder. A GitHub Actions workflow wraps the exact latest preview in a Flutter Android WebView APK and commits `releases/latest/Vell-App.apk` and `releases/latest/Vell-App-APK.zip` into this repository. The workflow run and release folder are linked in the Builder.
+
+Required Render environment variables:
+- `GROQ_API_KEY` for generation.
+- `GITHUB_TOKEN` with contents write permission for `emzaro731-byte/vell-ai`.
+- `RENDER_API_KEY` and `RENDER_OWNER_ID` for automatic Render site creation.
+
+The APK wraps the generated web preview; this pipeline does not convert arbitrary generated HTML into native Flutter screens or automatically provision arbitrary backend services/databases. Wait for the GitHub Actions workflow to finish before downloading the APK.

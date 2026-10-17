@@ -1,5 +1,5 @@
-name: vell_ai_studio
-description: Mobile companion for Vell AI Studio website builder.
+name: vell_ai
+description: Exact preview packaged as a Flutter Android app
 publish_to: "none"
 version: 1.0.0+1
 environment:
@@ -7,13 +7,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-  http: ^1.2.2
   webview_flutter: ^4.10.0
-  url_launcher: ^6.3.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/app.html

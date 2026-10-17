@@ -50,3 +50,14 @@ Required Render environment variables:
 - `RENDER_API_KEY` and `RENDER_OWNER_ID` for automatic Render site creation.
 
 The APK wraps the generated web preview; this pipeline does not convert arbitrary generated HTML into native Flutter screens or automatically provision arbitrary backend services/databases. Wait for the GitHub Actions workflow to finish before downloading the APK.
+
+## In-app Android APK builds
+
+When a generated preview is ready, Vell AI can build that exact HTML preview into an Android APK from the **Android APK builder** panel. Build progress is polled inside the Vell AI page; users do not need to open GitHub Actions to watch it. If a build fails, the server retrieves the failed job logs, asks the configured Groq model to repair the Flutter entry point on the same temporary build branch, and waits for one retry. When the build succeeds, **Download APK ZIP** streams the ZIP directly from the Vell AI server.
+
+Required Render environment variables:
+- `GITHUB_TOKEN`: repository contents write, Actions read/write, and permission to create refs/branches.
+- `GROQ_API_KEY`: used for source generation and one automatic repair attempt.
+- `GITHUB_REPO` (optional): defaults to `emzaro731-byte/vell-ai`.
+
+The build ZIP is only available after a successful Actions run. The APK wraps the exact generated HTML preview in a Flutter WebView; it does not automatically create a native Flutter implementation or provision external backends.

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mini TikTok Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+    --bg:#000;
+    --text:#fff;
+    --accent:#ff0050;
+    --overlay:#00000080;
+    --font-sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text);}
+header{
+    position:fixed;top:0;left:0;right:0;height:56px;
+    background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;
+    z-index:10;
+}
+header h1{font-size:1.2rem;font-weight:600;}
+main{
+    margin-top:56px;
+    scroll-snap-type:y mandatory;
+    overflow-y:auto;
+    height:calc(100% - 56px);
+}
+.video-card{
+    position:relative;
+    height:100vh;
+    scroll-snap-align:start;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#111;
+}
+video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+.overlay{
+    position:absolute;
+    inset:0;
+    background:var(--overlay);
+    pointer-events:none;
+}
+.controls{
+    position:absolute;
+    right:12px;
+    bottom:80px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:20px;
+    z-index:5;
+}
+.control-btn{
+    background:none;
+    border:none;
+    color:var(--text);
+    font-size:1.4rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    cursor:pointer;
+}
+.control-btn span{
+    margin-top:4px;
+    font-size:.8rem;
+}
+.control-btn.liked{color:var(--accent);}
+.comment-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:20;
+}
+.comment-modal[aria-hidden="false"]{display:flex;}
+.comment-box{
+    background:#222;
+    padding:20px;
+    border-radius:8px;
+    width:90%;
+    max-width:400px;
+}
+.comment-box textarea{
+    width:100%;
+    height:80px;
+    resize:none;
+    border:none;
+    border-radius:4px;
+    padding:8px;
+    font-family:inherit;
+    margin-bottom:12px;
+}
+.comment-box button{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:8px 16px;
+    border-radius:4px;
+    cursor:pointer;
+}
+@media (min-width:600px){
+    .controls{right:24px;bottom:120px;}
+}
+</style>
+</head>
+<body>
+<header>
+    <h1>Mini TikTok</h1>
+</header>
+<main id="feed">
+    <article class="video-card" data-id="1">
+        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" muted loop playsinline></video>
+        <div class="overlay"></div>
+        <div class="controls">
+            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
+                ❤️<span class="count">124</span>
+            </button>
+            <button class="control-btn comment-btn" aria-label="Comment">
+                💬<span>34</span>
+            </button>
+            <button class="control-btn share-btn" aria-label="Share">
+                🔗<span>12</span>
+            </button>
+        </div>
+    </article>
+    <article class="video-card" data-id="2">
+        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/bee.mp4" muted loop playsinline></video>
+        <div class="overlay"></div>
+        <div class="controls">
+            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
+                ❤️<span class="count">87</span>
+            </button>
+            <button class="control-btn comment-btn" aria-label="Comment">
+                💬<span>19</span>
+            </button>
+            <button class="control-btn share-btn" aria-label="Share">
+                🔗<span>5</span>
+            </button>
+        </div>
+    </article>
+    <article class="video-card" data-id="3">
+        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm" muted loop playsinline></video>
+        <div class="overlay"></div>
+        <div class="controls">
+            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
+                ❤️<span class="count">210</span>
+            </button>
+            <button class="control-btn comment-btn" aria-label="Comment">
+                💬<span>45</span>
+            </button>
+            <button class="control-btn share-btn" aria-label="Share">
+                🔗<span>23</span>
+            </button>
+        </div>
+    </article>
+</main>
+
+<div class="comment-modal" id="commentModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="comment-box">
+        <h2 style="margin-bottom:12px;">Add a comment</h2>
+        <textarea placeholder="Write something..."></textarea>
+        <button type="button" id="submitComment">Post</button>
+    </div>
+</div>
+
+<script>
+(() => {
+    const feed = document.getElementById('feed');
+    const videos = feed.querySelectorAll('video');
+    const likeButtons = feed.querySelectorAll('.like-btn');
+    const commentButtons = feed.querySelectorAll('.comment-btn');
+    const commentModal = document.getElementById('commentModal');
+    const submitComment = document.getElementById('submitComment');
+    let activeVideo = null;
+
+    // IntersectionObserver to autoplay/pause
+    const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+            const video = entry.target;
+            if (entry.isIntersecting) {
+                if (activeVideo && activeVideo !== video) {
+                    activeVideo.pause();
+                }
+                video.play();
+                activeVideo = video;
+            } else {
+                video.pause();
+            }
+        });
+    }, {threshold: 0.75});
+    videos.forEach(v => observer.observe(v));
+
+    // Like toggle
+    likeButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pressed = btn.getAttribute('aria-pressed') === 'true';
+            btn.setAttribute('aria-pressed', !pressed);
+            btn.classList.toggle('liked', !pressed);
+            const countSpan = btn.querySelector('.count');
+            let count = parseInt(countSpan.textContent,10);
+            count = pressed ? count-1 : count+1;
+            countSpan.textContent = count;
+        });
+    });
+
+    // Comment modal handling
+    let currentCommentTarget = null;
+    commentButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            currentCommentTarget = e.currentTarget.closest('.video-card');
+            commentModal.setAttribute('aria-hidden','false');
+            commentModal.querySelector('textarea').focus();
+        });
+    });
+    commentModal.addEventListener('click', (e) => {
+        if (e.target === commentModal) {
+            commentModal.setAttribute('aria-hidden','true');
+        }
+    });
+    submitComment.addEventListener('click', () => {
+        // In a real app, you'd send the comment. Here we just close.
+        commentModal.setAttribute('aria-hidden','true');
+        commentModal.querySelector('textarea').value = '';
+    });
+
+    // Keyboard accessibility: Escape to close modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && commentModal.getAttribute('aria-hidden') === 'false') {
+            commentModal.setAttribute('aria-hidden','true');
+        }
+    });
+})();
+</script>
+</body>
+</html>

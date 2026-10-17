@@ -102,3 +102,24 @@ button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #8
  .builder-head{margin-top:8px}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+
+/* In-app APK build progress and direct download */
+.apk-track{padding:14px 16px 17px}
+.apk-track-head{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px}
+.apk-track-head strong{font-size:13px;color:var(--text)}
+#apkPercent{font-variant-numeric:tabular-nums;color:#a9c6ff;font-weight:800}
+.apk-track-bar{height:8px;margin:12px 0 10px;border-radius:99px;background:#1b2940;border:1px solid rgba(130,165,226,.15);overflow:hidden}
+.apk-track-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#6d8cff,#77dbe2);box-shadow:0 0 16px rgba(110,155,255,.25);transition:width .35s ease}
+#apkMessage{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+#apkSteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;list-style:none;padding:0;margin:16px 0 0}
+#apkSteps li{position:relative;min-width:0;border:1px solid var(--line);border-radius:9px;background:rgba(10,17,29,.48);padding:9px 8px 9px 24px;font-size:10px;line-height:1.45;color:var(--muted)}
+#apkSteps li:before{content:"○";position:absolute;left:8px;top:8px;color:#71819b;font-size:12px}
+#apkSteps li.current{color:#dbe8ff;border-color:rgba(129,169,246,.4);background:rgba(40,65,109,.25)}
+#apkSteps li.current:before{content:"◌";color:#9ec0ff}
+#apkSteps li.done{color:#baf2d9;border-color:rgba(75,190,145,.24);background:rgba(17,53,43,.25)}
+#apkSteps li.done:before{content:"✓";color:#6fe0b0}
+#apkDownloadWrap{margin-top:15px}
+#apkDownloadLink{font-weight:800;padding:11px 15px}
+#buildApkButton:disabled{opacity:.55;cursor:wait}
+@media(max-width:560px){#apkSteps{grid-template-columns:repeat(2,minmax(0,1fr))}.apk-track{padding:12px}.apk-track-head{align-items:flex-start}.apk-track-head strong{max-width:75%}}

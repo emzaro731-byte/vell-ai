@@ -2,242 +2,295 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Mini TikTok Clone</title>
+<title>WhatsApp Web Clone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-:root {
-    --bg:#000;
-    --text:#fff;
-    --accent:#ff0050;
-    --overlay:#00000080;
-    --font-sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
+:root{
+  --primary:#075E54;
+  --primary-light:#128C7E;
+  --bg:#ECE5DD;
+  --msg-in:#DCF8C6;
+  --msg-out:#FFFFFF;
+  --text:#303030;
+  --muted:#777;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;font-family:var(--font-sans);background:var(--bg);color:var(--text);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:system-ui,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  display:flex;
+  overflow:hidden;
+}
+a{color:inherit;text-decoration:none;}
+button{
+  background:none;
+  border:none;
+  cursor:pointer;
+}
 header{
-    position:fixed;top:0;left:0;right:0;height:56px;
-    background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;
-    z-index:10;
+  background:var(--primary);
+  color:#fff;
+  padding:0.5rem 1rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
 }
-header h1{font-size:1.2rem;font-weight:600;}
-main{
-    margin-top:56px;
-    scroll-snap-type:y mandatory;
-    overflow-y:auto;
-    height:calc(100% - 56px);
+header h1{
+  font-size:1.2rem;
 }
-.video-card{
-    position:relative;
-    height:100vh;
-    scroll-snap-align:start;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#111;
+#app{
+  display:flex;
+  flex:1;
+  overflow:hidden;
 }
-video{
-    width:100%;
+#sidebar{
+  width:280px;
+  max-width:100%;
+  background:#fff;
+  border-right:1px solid #ddd;
+  display:flex;
+  flex-direction:column;
+}
+#sidebar header{
+  background:var(--primary-light);
+}
+#chat-list{
+  flex:1;
+  overflow-y:auto;
+}
+.chat-item{
+  display:flex;
+  align-items:center;
+  padding:0.75rem 1rem;
+  border-bottom:1px solid #f0f0f0;
+  cursor:pointer;
+}
+.chat-item:hover,
+.chat-item[aria-selected="true"]{
+  background:#f5f5f5;
+}
+.chat-item img{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  margin-right:0.75rem;
+}
+.chat-item .info{
+  flex:1;
+}
+.chat-item .info h2{
+  font-size:1rem;
+  margin-bottom:0.2rem;
+}
+.chat-item .info p{
+  font-size:0.85rem;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.chat-item .time{
+  font-size:0.75rem;
+  color:var(--muted);
+}
+#main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+}
+#main header{
+  background:var(--primary);
+  color:#fff;
+}
+#messages{
+  flex:1;
+  overflow-y:auto;
+  padding:1rem;
+  display:flex;
+  flex-direction:column;
+  gap:0.5rem;
+}
+.message{
+  max-width:70%;
+  padding:0.5rem 0.75rem;
+  border-radius:0.5rem;
+  line-height:1.4;
+  word-wrap:break-word;
+}
+.message.incoming{
+  background:var(--msg-in);
+  align-self:flex-start;
+}
+.message.outgoing{
+  background:var(--msg-out);
+  align-self:flex-end;
+}
+#composer{
+  display:flex;
+  padding:0.5rem;
+  background:#fff;
+  border-top:1px solid #ddd;
+}
+#composer textarea{
+  flex:1;
+  resize:none;
+  border:1px solid #ccc;
+  border-radius:0.5rem;
+  padding:0.5rem;
+  font-family:inherit;
+}
+#composer button{
+  margin-left:0.5rem;
+  background:var(--primary);
+  color:#fff;
+  border-radius:0.5rem;
+  padding:0 1rem;
+  font-size:1rem;
+}
+@media (max-width:768px){
+  #sidebar{
+    position:absolute;
+    left:-100%;
+    top:0;
     height:100%;
-    object-fit:cover;
+    z-index:2;
+    transition:left .3s ease;
+  }
+  #sidebar.open{
+    left:0;
+  }
+  #main header .menu-btn{
+    display:block;
+  }
 }
-.overlay{
-    position:absolute;
-    inset:0;
-    background:var(--overlay);
-    pointer-events:none;
-}
-.controls{
-    position:absolute;
-    right:12px;
-    bottom:80px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:20px;
-    z-index:5;
-}
-.control-btn{
-    background:none;
-    border:none;
-    color:var(--text);
-    font-size:1.4rem;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    cursor:pointer;
-}
-.control-btn span{
-    margin-top:4px;
-    font-size:.8rem;
-}
-.control-btn.liked{color:var(--accent);}
-.comment-modal{
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.8);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:20;
-}
-.comment-modal[aria-hidden="false"]{display:flex;}
-.comment-box{
-    background:#222;
-    padding:20px;
-    border-radius:8px;
-    width:90%;
-    max-width:400px;
-}
-.comment-box textarea{
-    width:100%;
-    height:80px;
-    resize:none;
-    border:none;
-    border-radius:4px;
-    padding:8px;
-    font-family:inherit;
-    margin-bottom:12px;
-}
-.comment-box button{
-    background:var(--accent);
-    color:#fff;
-    border:none;
-    padding:8px 16px;
-    border-radius:4px;
-    cursor:pointer;
-}
-@media (min-width:600px){
-    .controls{right:24px;bottom:120px;}
+.menu-btn{
+  display:none;
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:1.5rem;
 }
 </style>
 </head>
 <body>
-<header>
-    <h1>Mini TikTok</h1>
-</header>
-<main id="feed">
-    <article class="video-card" data-id="1">
-        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" muted loop playsinline></video>
-        <div class="overlay"></div>
-        <div class="controls">
-            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
-                ❤️<span class="count">124</span>
-            </button>
-            <button class="control-btn comment-btn" aria-label="Comment">
-                💬<span>34</span>
-            </button>
-            <button class="control-btn share-btn" aria-label="Share">
-                🔗<span>12</span>
-            </button>
-        </div>
-    </article>
-    <article class="video-card" data-id="2">
-        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/bee.mp4" muted loop playsinline></video>
-        <div class="overlay"></div>
-        <div class="controls">
-            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
-                ❤️<span class="count">87</span>
-            </button>
-            <button class="control-btn comment-btn" aria-label="Comment">
-                💬<span>19</span>
-            </button>
-            <button class="control-btn share-btn" aria-label="Share">
-                🔗<span>5</span>
-            </button>
-        </div>
-    </article>
-    <article class="video-card" data-id="3">
-        <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm" muted loop playsinline></video>
-        <div class="overlay"></div>
-        <div class="controls">
-            <button class="control-btn like-btn" aria-pressed="false" aria-label="Like">
-                ❤️<span class="count">210</span>
-            </button>
-            <button class="control-btn comment-btn" aria-label="Comment">
-                💬<span>45</span>
-            </button>
-            <button class="control-btn share-btn" aria-label="Share">
-                🔗<span>23</span>
-            </button>
-        </div>
-    </article>
-</main>
-
-<div class="comment-modal" id="commentModal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="comment-box">
-        <h2 style="margin-bottom:12px;">Add a comment</h2>
-        <textarea placeholder="Write something..."></textarea>
-        <button type="button" id="submitComment">Post</button>
+<div id="app">
+  <aside id="sidebar" aria-label="Chat list">
+    <header>
+      <h1>WhatsApp</h1>
+    </header>
+    <div id="chat-list" role="listbox" tabindex="0">
+      <!-- Chat items will be injected -->
     </div>
+  </aside>
+
+  <section id="main">
+    <header>
+      <button class="menu-btn" aria-label="Open chat list" onclick="toggleSidebar()">☰</button>
+      <h1 id="chat-title">Select a chat</h1>
+    </header>
+    <div id="messages" aria-live="polite"></div>
+    <form id="composer" onsubmit="sendMessage(event)">
+      <textarea id="msg-input" rows="1" placeholder="Type a message" aria-label="Message input"></textarea>
+      <button type="submit" aria-label="Send message">Send</button>
+    </form>
+  </section>
 </div>
 
 <script>
-(() => {
-    const feed = document.getElementById('feed');
-    const videos = feed.querySelectorAll('video');
-    const likeButtons = feed.querySelectorAll('.like-btn');
-    const commentButtons = feed.querySelectorAll('.comment-btn');
-    const commentModal = document.getElementById('commentModal');
-    const submitComment = document.getElementById('submitComment');
-    let activeVideo = null;
+const chats = [
+  {id:1, name:"Alice", avatar:"https://i.pravatar.cc/150?img=1", last:"Hey, are you free tomorrow?"},
+  {id:2, name:"Bob", avatar:"https://i.pravatar.cc/150?img=2", last:"Got the tickets!"},
+  {id:3, name:"Charlie", avatar:"https://i.pravatar.cc/150?img=3", last:"Let's catch up soon."},
+];
+let activeChatId = null;
+const messagesStoreKey = "whatsapp-messages";
 
-    // IntersectionObserver to autoplay/pause
-    const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-            const video = entry.target;
-            if (entry.isIntersecting) {
-                if (activeVideo && activeVideo !== video) {
-                    activeVideo.pause();
-                }
-                video.play();
-                activeVideo = video;
-            } else {
-                video.pause();
-            }
-        });
-    }, {threshold: 0.75});
-    videos.forEach(v => observer.observe(v));
-
-    // Like toggle
-    likeButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const pressed = btn.getAttribute('aria-pressed') === 'true';
-            btn.setAttribute('aria-pressed', !pressed);
-            btn.classList.toggle('liked', !pressed);
-            const countSpan = btn.querySelector('.count');
-            let count = parseInt(countSpan.textContent,10);
-            count = pressed ? count-1 : count+1;
-            countSpan.textContent = count;
-        });
-    });
-
-    // Comment modal handling
-    let currentCommentTarget = null;
-    commentButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            currentCommentTarget = e.currentTarget.closest('.video-card');
-            commentModal.setAttribute('aria-hidden','false');
-            commentModal.querySelector('textarea').focus();
-        });
-    });
-    commentModal.addEventListener('click', (e) => {
-        if (e.target === commentModal) {
-            commentModal.setAttribute('aria-hidden','true');
-        }
-    });
-    submitComment.addEventListener('click', () => {
-        // In a real app, you'd send the comment. Here we just close.
-        commentModal.setAttribute('aria-hidden','true');
-        commentModal.querySelector('textarea').value = '';
-    });
-
-    // Keyboard accessibility: Escape to close modal
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && commentModal.getAttribute('aria-hidden') === 'false') {
-            commentModal.setAttribute('aria-hidden','true');
-        }
-    });
-})();
+function init(){
+  renderChatList();
+  const saved = localStorage.getItem(messagesStoreKey);
+  if(saved) window.messages = JSON.parse(saved);
+  else window.messages = {};
+}
+function renderChatList(){
+  const list = document.getElementById('chat-list');
+  list.innerHTML = "";
+  chats.forEach(chat=>{
+    const item = document.createElement('div');
+    item.className="chat-item";
+    item.setAttribute('role','option');
+    item.setAttribute('aria-selected','false');
+    item.dataset.id=chat.id;
+    item.innerHTML=`
+      <img src="${chat.avatar}" alt="${chat.name} avatar">
+      <div class="info">
+        <h2>${chat.name}</h2>
+        <p>${chat.last}</p>
+      </div>
+      <div class="time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+    `;
+    item.addEventListener('click',()=>selectChat(chat.id));
+    list.appendChild(item);
+  });
+}
+function selectChat(id){
+  activeChatId = id;
+  document.querySelectorAll('.chat-item').forEach(i=>i.setAttribute('aria-selected','false'));
+  const activeItem = document.querySelector(`.chat-item[data-id="${id}"]`);
+  if(activeItem) activeItem.setAttribute('aria-selected','true');
+  const chat = chats.find(c=>c.id===id);
+  document.getElementById('chat-title').textContent = chat.name;
+  renderMessages();
+  closeSidebarOnMobile();
+}
+function renderMessages(){
+  const container = document.getElementById('messages');
+  container.innerHTML="";
+  const msgs = window.messages[activeChatId]||[];
+  msgs.forEach(m=>{
+    const div=document.createElement('div');
+    div.className=`message ${m.type}`;
+    div.textContent=m.text;
+    container.appendChild(div);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+function sendMessage(e){
+  e.preventDefault();
+  const input=document.getElementById('msg-input');
+  const text=input.value.trim();
+  if(!text||activeChatId===null) return;
+  const newMsg={type:"outgoing",text};
+  if(!window.messages[activeChatId]) window.messages[activeChatId]=[];
+  window.messages[activeChatId].push(newMsg);
+  // simulate a reply after 1s
+  setTimeout(()=>receiveReply(activeChatId),1000);
+  input.value="";
+  renderMessages();
+  saveMessages();
+}
+function receiveReply(chatId){
+  const replies=["Okay!","Sure thing","Got it","Thanks!"];
+  const reply={type:"incoming",text:replies[Math.floor(Math.random()*replies.length)]};
+  window.messages[chatId].push(reply);
+  if(chatId===activeChatId) renderMessages();
+  saveMessages();
+}
+function saveMessages(){
+  localStorage.setItem(messagesStoreKey,JSON.stringify(window.messages));
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function closeSidebarOnMobile(){
+  if(window.innerWidth<=768){
+    document.getElementById('sidebar').classList.remove('open');
+  }
+}
+window.addEventListener('resize',()=>{if(window.innerWidth>768) document.getElementById('sidebar').classList.remove('open');});
+init();
 </script>
 </body>
 </html>

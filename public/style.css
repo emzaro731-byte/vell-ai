@@ -123,3 +123,50 @@ button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid #8
 #apkDownloadLink{font-weight:800;padding:11px 15px}
 #buildApkButton:disabled{opacity:.55;cursor:wait}
 @media(max-width:560px){#apkSteps{grid-template-columns:repeat(2,minmax(0,1fr))}.apk-track{padding:12px}.apk-track-head{align-items:flex-start}.apk-track-head strong{max-width:75%}}
+
+
+/* ChatGPT-inspired conversation workspace — mobile-first polish */
+header{height:62px}
+header #title{font-size:15px;font-weight:650;letter-spacing:-.2px}
+.pill{font-size:10px;padding:5px 10px}
+.builder{max-width:900px;padding-top:clamp(24px,7vh,76px)}
+.builder-head{text-align:center;max-width:690px;margin:0 auto 28px}
+.builder-head>small{font-size:10px;letter-spacing:1.8px}
+.builder-head h1{font-size:clamp(31px,5vw,44px);line-height:1.14;letter-spacing:-1.8px;margin:14px 0}
+.builder-head p{font-size:14px;max-width:520px}
+.buildform{max-width:760px;margin:0 auto;border-radius:25px;padding:16px;background:rgba(16,23,35,.96);border:1px solid rgba(137,158,194,.28);box-shadow:0 16px 55px rgba(0,0,0,.22)}
+.buildform textarea{min-height:100px;padding:8px 9px 16px;font-size:16px;line-height:1.6;background:transparent;border:0}
+.buildform textarea:focus{border-color:transparent}
+.buildform>div{border-top:1px solid rgba(111,143,195,.15);padding-top:12px;margin-top:0;display:flex;flex-wrap:wrap;align-items:center;gap:9px}
+.buildform>div small{margin-right:auto;font-size:11px}
+.buildform button{border-radius:22px;padding:11px 16px;font-size:12px;min-height:40px}
+.buildform .secondary{border-radius:22px}
+.statusline,.project-output,.preview,.empty{max-width:760px;margin-left:auto;margin-right:auto;width:100%}
+.project-output{margin-top:14px}
+.preview{margin-top:14px}
+#apkBuildPanel{margin-top:14px}
+.previewbar{min-height:48px}
+.previewbar b{font-size:12px}
+#empty{padding:45px 10px}
+#empty b{font-size:23px}
+#deployDetails,#projectFiles{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.composer{z-index:1}
+.composer>textarea{font-size:15px}
+@media(max-width:760px){
+ header{height:58px;padding:0 12px}
+ header #title{font-size:14px}
+ .builder{padding:32px 13px max(32px,env(safe-area-inset-bottom))}
+ .builder-head{margin:5px auto 24px}
+ .builder-head h1{font-size:34px;letter-spacing:-1.3px}
+ .builder-head p{font-size:13px;line-height:1.7}
+ .buildform{padding:14px;border-radius:22px}
+ .buildform textarea{font-size:16px;min-height:108px;padding:7px 5px 16px}
+ .buildform>div{display:flex;flex-direction:row;align-items:center;gap:8px}
+ .buildform>div small{width:100%;margin:0 0 2px}
+ .buildform button{flex:1;width:auto;min-width:0;padding:10px 9px;font-size:11px}
+ .buildform .secondary{flex:1}
+ #apkSteps{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .apk-track{padding:12px}
+ .project-output>div{align-items:flex-start;flex-wrap:wrap}
+ .project-output pre{font-size:10px}
+}

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WhatsApp Web Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --primary:#075E54;
+  --primary-light:#128C7E;
+  --bg:#ECE5DD;
+  --msg-in:#DCF8C6;
+  --msg-out:#FFFFFF;
+  --text:#303030;
+  --muted:#777;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:system-ui,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  display:flex;
+  overflow:hidden;
+}
+a{color:inherit;text-decoration:none;}
+button{
+  background:none;
+  border:none;
+  cursor:pointer;
+}
+header{
+  background:var(--primary);
+  color:#fff;
+  padding:0.5rem 1rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+header h1{
+  font-size:1.2rem;
+}
+#app{
+  display:flex;
+  flex:1;
+  overflow:hidden;
+}
+#sidebar{
+  width:280px;
+  max-width:100%;
+  background:#fff;
+  border-right:1px solid #ddd;
+  display:flex;
+  flex-direction:column;
+}
+#sidebar header{
+  background:var(--primary-light);
+}
+#chat-list{
+  flex:1;
+  overflow-y:auto;
+}
+.chat-item{
+  display:flex;
+  align-items:center;
+  padding:0.75rem 1rem;
+  border-bottom:1px solid #f0f0f0;
+  cursor:pointer;
+}
+.chat-item:hover,
+.chat-item[aria-selected="true"]{
+  background:#f5f5f5;
+}
+.chat-item img{
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  margin-right:0.75rem;
+}
+.chat-item .info{
+  flex:1;
+}
+.chat-item .info h2{
+  font-size:1rem;
+  margin-bottom:0.2rem;
+}
+.chat-item .info p{
+  font-size:0.85rem;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.chat-item .time{
+  font-size:0.75rem;
+  color:var(--muted);
+}
+#main{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+}
+#main header{
+  background:var(--primary);
+  color:#fff;
+}
+#messages{
+  flex:1;
+  overflow-y:auto;
+  padding:1rem;
+  display:flex;
+  flex-direction:column;
+  gap:0.5rem;
+}
+.message{
+  max-width:70%;
+  padding:0.5rem 0.75rem;
+  border-radius:0.5rem;
+  line-height:1.4;
+  word-wrap:break-word;
+}
+.message.incoming{
+  background:var(--msg-in);
+  align-self:flex-start;
+}
+.message.outgoing{
+  background:var(--msg-out);
+  align-self:flex-end;
+}
+#composer{
+  display:flex;
+  padding:0.5rem;
+  background:#fff;
+  border-top:1px solid #ddd;
+}
+#composer textarea{
+  flex:1;
+  resize:none;
+  border:1px solid #ccc;
+  border-radius:0.5rem;
+  padding:0.5rem;
+  font-family:inherit;
+}
+#composer button{
+  margin-left:0.5rem;
+  background:var(--primary);
+  color:#fff;
+  border-radius:0.5rem;
+  padding:0 1rem;
+  font-size:1rem;
+}
+@media (max-width:768px){
+  #sidebar{
+    position:absolute;
+    left:-100%;
+    top:0;
+    height:100%;
+    z-index:2;
+    transition:left .3s ease;
+  }
+  #sidebar.open{
+    left:0;
+  }
+  #main header .menu-btn{
+    display:block;
+  }
+}
+.menu-btn{
+  display:none;
+  background:none;
+  border:none;
+  color:#fff;
+  font-size:1.5rem;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar" aria-label="Chat list">
+    <header>
+      <h1>WhatsApp</h1>
+    </header>
+    <div id="chat-list" role="listbox" tabindex="0">
+      <!-- Chat items will be injected -->
+    </div>
+  </aside>
+
+  <section id="main">
+    <header>
+      <button class="menu-btn" aria-label="Open chat list" onclick="toggleSidebar()">☰</button>
+      <h1 id="chat-title">Select a chat</h1>
+    </header>
+    <div id="messages" aria-live="polite"></div>
+    <form id="composer" onsubmit="sendMessage(event)">
+      <textarea id="msg-input" rows="1" placeholder="Type a message" aria-label="Message input"></textarea>
+      <button type="submit" aria-label="Send message">Send</button>
+    </form>
+  </section>
+</div>
+
+<script>
+const chats = [
+  {id:1, name:"Alice", avatar:"https://i.pravatar.cc/150?img=1", last:"Hey, are you free tomorrow?"},
+  {id:2, name:"Bob", avatar:"https://i.pravatar.cc/150?img=2", last:"Got the tickets!"},
+  {id:3, name:"Charlie", avatar:"https://i.pravatar.cc/150?img=3", last:"Let's catch up soon."},
+];
+let activeChatId = null;
+const messagesStoreKey = "whatsapp-messages";
+
+function init(){
+  renderChatList();
+  const saved = localStorage.getItem(messagesStoreKey);
+  if(saved) window.messages = JSON.parse(saved);
+  else window.messages = {};
+}
+function renderChatList(){
+  const list = document.getElementById('chat-list');
+  list.innerHTML = "";
+  chats.forEach(chat=>{
+    const item = document.createElement('div');
+    item.className="chat-item";
+    item.setAttribute('role','option');
+    item.setAttribute('aria-selected','false');
+    item.dataset.id=chat.id;
+    item.innerHTML=`
+      <img src="${chat.avatar}" alt="${chat.name} avatar">
+      <div class="info">
+        <h2>${chat.name}</h2>
+        <p>${chat.last}</p>
+      </div>
+      <div class="time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+    `;
+    item.addEventListener('click',()=>selectChat(chat.id));
+    list.appendChild(item);
+  });
+}
+function selectChat(id){
+  activeChatId = id;
+  document.querySelectorAll('.chat-item').forEach(i=>i.setAttribute('aria-selected','false'));
+  const activeItem = document.querySelector(`.chat-item[data-id="${id}"]`);
+  if(activeItem) activeItem.setAttribute('aria-selected','true');
+  const chat = chats.find(c=>c.id===id);
+  document.getElementById('chat-title').textContent = chat.name;
+  renderMessages();
+  closeSidebarOnMobile();
+}
+function renderMessages(){
+  const container = document.getElementById('messages');
+  container.innerHTML="";
+  const msgs = window.messages[activeChatId]||[];
+  msgs.forEach(m=>{
+    const div=document.createElement('div');
+    div.className=`message ${m.type}`;
+    div.textContent=m.text;
+    container.appendChild(div);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+function sendMessage(e){
+  e.preventDefault();
+  const input=document.getElementById('msg-input');
+  const text=input.value.trim();
+  if(!text||activeChatId===null) return;
+  const newMsg={type:"outgoing",text};
+  if(!window.messages[activeChatId]) window.messages[activeChatId]=[];
+  window.messages[activeChatId].push(newMsg);
+  // simulate a reply after 1s
+  setTimeout(()=>receiveReply(activeChatId),1000);
+  input.value="";
+  renderMessages();
+  saveMessages();
+}
+function receiveReply(chatId){
+  const replies=["Okay!","Sure thing","Got it","Thanks!"];
+  const reply={type:"incoming",text:replies[Math.floor(Math.random()*replies.length)]};
+  window.messages[chatId].push(reply);
+  if(chatId===activeChatId) renderMessages();
+  saveMessages();
+}
+function saveMessages(){
+  localStorage.setItem(messagesStoreKey,JSON.stringify(window.messages));
+}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function closeSidebarOnMobile(){
+  if(window.innerWidth<=768){
+    document.getElementById('sidebar').classList.remove('open');
+  }
+}
+window.addEventListener('resize',()=>{if(window.innerWidth>768) document.getElementById('sidebar').classList.remove('open');});
+init();
+</script>
+</body>
+</html>

@@ -2,319 +2,213 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>WhatsApp Mockup</title>
+<title>TikTok‑Style Feed</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root {
-    --bg-primary:#ece5dd;
-    --bg-chat:#fff;
-    --bg-header:#075e54;
-    --color-header:#fff;
-    --color-primary:#075e54;
-    --color-secondary:#128c7e;
-    --color-muted:#777;
-    --radius:8px;
-    --font-main:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    --bg:#111;
+    --text:#fff;
+    --accent:#ff0050;
+    --overlay:#0008;
+    --icon-size:1.6rem;
+    --font-sans:"Helvetica Neue",Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   body{
-    font-family:var(--font-main);
-    background:var(--bg-primary);
-    height:100vh;
-    display:flex;
-    flex-direction:column;
+    font-family:var(--font-sans);
+    background:var(--bg);
+    color:var(--text);
+    overflow-y:scroll;
+    -webkit-overflow-scrolling:touch;
   }
   header{
-    background:var(--bg-header);
-    color:var(--color-header);
-    padding:0.5rem 1rem;
+    position:fixed;
+    top:0;left:0;right:0;
+    height:3rem;
+    background:rgba(0,0,0,.6);
     display:flex;
     align-items:center;
-    gap:0.5rem;
-  }
-  header img{
-    width:32px;height:32px;border-radius:50%;
+    padding:0 1rem;
+    z-index:10;
   }
   header h1{
     font-size:1.2rem;
-    flex:1;
+    font-weight:600;
   }
   main{
-    flex:1;
-    display:flex;
-    overflow:hidden;
+    margin-top:3rem;
   }
-  aside{
-    width:260px;
-    background:#fff;
-    border-right:1px solid #ddd;
-    display:flex;
-    flex-direction:column;
-  }
-  #search{
-    padding:0.5rem;
-    border:none;
-    outline:none;
+  .video-card{
+    position:relative;
     width:100%;
-    font-size:1rem;
-  }
-  #contact-list{
-    flex:1;
-    overflow-y:auto;
-  }
-  .contact{
-    display:flex;
-    align-items:center;
-    padding:0.5rem 1rem;
-    cursor:pointer;
-    gap:0.75rem;
-  }
-  .contact:hover,.contact[aria-selected="true"]{
-    background:#f0f0f0;
-  }
-  .contact img{
-    width:48px;height:48px;border-radius:50%;
-  }
-  .contact .info{
-    flex:1;
+    height:100vh;
     overflow:hidden;
   }
-  .contact .info h2{
-    font-size:1rem;
-    margin-bottom:0.2rem;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+  .video-card video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
   }
-  .contact .info p{
-    font-size:0.85rem;
-    color:var(--color-muted);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
-  .chat{
-    flex:1;
+  .overlay{
+    position:absolute;
+    inset:0;
+    background:var(--overlay);
     display:flex;
     flex-direction:column;
-    background:var(--bg-chat);
-  }
-  .chat-header{
-    background:var(--bg-header);
-    color:#fff;
-    padding:0.5rem 1rem;
-    display:flex;
-    align-items:center;
-    gap:0.5rem;
-  }
-  .chat-header img{
-    width:36px;height:36px;border-radius:50%;
-  }
-  .chat-header h2{
-    font-size:1rem;
-    flex:1;
-  }
-  .messages{
-    flex:1;
-    overflow-y:auto;
+    justify-content:flex-end;
     padding:1rem;
+    pointer-events:none;
+  }
+  .info{
+    pointer-events:auto;
+    max-width:70%;
+  }
+  .info h2{
+    font-size:1rem;
+    margin-bottom:.3rem;
+  }
+  .info p{
+    font-size:.85rem;
+    line-height:1.2;
+  }
+  .actions{
+    position:absolute;
+    right:1rem;
+    bottom:4rem;
     display:flex;
     flex-direction:column;
-    gap:0.5rem;
-  }
-  .msg{
-    max-width:70%;
-    padding:0.5rem 0.75rem;
-    border-radius:var(--radius);
-    line-height:1.4;
-    word-wrap:break-word;
-  }
-  .msg.incoming{
-    background:#e1ffc7;
-    align-self:flex-start;
-  }
-  .msg.outgoing{
-    background:#dcf8c6;
-    align-self:flex-end;
-  }
-  .msg time{
-    display:block;
-    font-size:0.7rem;
-    color:var(--color-muted);
-    margin-top:0.2rem;
-    text-align:right;
-  }
-  .input-area{
-    display:flex;
-    padding:0.5rem;
-    gap:0.5rem;
-    background:#f0f0f0;
-  }
-  .input-area textarea{
-    flex:1;
-    resize:none;
-    border:none;
-    border-radius:var(--radius);
-    padding:0.5rem;
-    font-family:inherit;
-    font-size:1rem;
-    outline:none;
-  }
-  .input-area button{
-    background:var(--color-primary);
-    border:none;
-    color:#fff;
-    border-radius:50%;
-    width:40px;height:40px;
-    display:flex;
+    gap:.8rem;
     align-items:center;
-    justify-content:center;
+    pointer-events:auto;
+  }
+  .action-btn{
+    background:none;
+    border:none;
+    color:var(--text);
+    font-size:var(--icon-size);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
     cursor:pointer;
   }
-  @media (max-width:768px){
-    aside{
-      position:absolute;
-      left:-260px;
-      top:0;
-      height:100%;
-      z-index:10;
-      transition:left .3s ease;
+  .action-btn span{
+    font-size:.75rem;
+    margin-top:.2rem;
+  }
+  .liked{
+    color:var(--accent);
+  }
+  @media (min-width:600px){
+    .actions{
+      right:2rem;
     }
-    aside.open{
-      left:0;
-    }
-    .chat-header button.menu{
-      display:inline-flex;
-    }
-    .chat-header button.menu{
-      background:none;
-      border:none;
-      color:#fff;
-      font-size:1.5rem;
-      cursor:pointer;
+    .info{
+      max-width:60%;
     }
   }
 </style>
 </head>
 <body>
 <header>
-  <img src="https://via.placeholder.com/32" alt="User Avatar">
-  <h1>WhatsApp Mockup</h1>
+  <h1>TikTok Demo</h1>
 </header>
-<main>
-  <aside id="sidebar" aria-label="Contact list">
-    <input type="search" id="search" placeholder="Search or start new chat" aria-label="Search contacts">
-    <div id="contact-list" role="listbox" tabindex="0">
-      <!-- Contacts will be injected -->
-    </div>
-  </aside>
-  <section class="chat" aria-label="Chat window">
-    <div class="chat-header">
-      <button class="menu" aria-label="Open contacts" style="display:none;">☰</button>
-      <img src="https://via.placeholder.com/36" alt="" id="chat-avatar">
-      <h2 id="chat-name">Select a chat</h2>
-    </div>
-    <div class="messages" id="messages" aria-live="polite">
-      <!-- Messages will appear here -->
-    </div>
-    <form class="input-area" id="msgForm" aria-label="Send message">
-      <textarea id="msgInput" rows="1" placeholder="Type a message" aria-label="Message input"></textarea>
-      <button type="submit" aria-label="Send"><svg xmlns="http://www.w3.org/2000/svg" fill="#fff" viewBox="0 0 24 24" width="20" height="20"><path d="M2.01 21l20.99-9L2.01 3v7l15 2-15 2z"/></svg></button>
-    </form>
-  </section>
-</main>
+<main id="feed" aria-live="polite"></main>
 
 <script>
-const contacts = [
-  {id:1,name:"Alice",avatar:"https://via.placeholder.com/48/ff7f7f/fff?text=A",messages:[
-    {type:"incoming",text:"Hey! How are you?",time:"10:00"},
-    {type:"outgoing",text:"I’m good, thanks! You?",time:"10:02"},
-    {type:"incoming",text:"Doing great 😊",time:"10:03"}
-  ]},
-  {id:2,name:"Bob",avatar:"https://via.placeholder.com/48/7fbfff/fff?text=B",messages:[
-    {type:"incoming",text:"Did you see the game?",time:"09:15"},
-    {type:"outgoing",text:"Yes! What a finish!",time:"09:17"}
-  ]},
-  {id:3,name:"Charlie",avatar:"https://via.placeholder.com/48/7fff7f/fff?text=C",messages:[
-    {type:"incoming",text:"Let’s meet at 5pm.",time:"08:45"},
-    {type:"outgoing",text:"Sure thing.",time:"08:46"}
-  ]}
+const videos = [
+  {
+    src:"https://www.w3schools.com/html/mov_bbb.mp4",
+    user:"@alice",
+    description:"Sunset vibes 🌅",
+    likes:124,
+    comments:8
+  },
+  {
+    src:"https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    user:"@bob",
+    description:"Blooming flowers!",
+    likes:87,
+    comments:12
+  },
+  {
+    src:"https://media.w3.org/2010/05/sintel/trailer_hd.mp4",
+    user:"@charlie",
+    description:"Adventure time 🚀",
+    likes:203,
+    comments:34
+  }
 ];
 
-let currentChat = null;
-
-function renderContacts(filter=""){
-  const list = document.getElementById('contact-list');
-  list.innerHTML="";
-  contacts.filter(c=>c.name.toLowerCase().includes(filter.toLowerCase()))
-    .forEach(c=>{
-      const div=document.createElement('div');
-      div.className="contact";
-      div.setAttribute('role','option');
-      div.setAttribute('tabindex','0');
-      div.dataset.id=c.id;
-      div.innerHTML=`
-        <img src="${c.avatar}" alt="${c.name} avatar">
-        <div class="info">
-          <h2>${c.name}</h2>
-          <p>${c.messages[c.messages.length-1]?.text.slice(0,30)||''}</p>
-        </div>
-      `;
-      div.addEventListener('click',()=>selectChat(c.id));
-      div.addEventListener('keydown',e=>{if(e.key==="Enter")selectChat(c.id);});
-      list.appendChild(div);
-    });
-}
-function selectChat(id){
-  currentChat = contacts.find(c=>c.id===id);
-  document.querySelectorAll('.contact').forEach(el=>el.setAttribute('aria-selected','false'));
-  const selected=document.querySelector(`.contact[data-id="${id}"]`);
-  if(selected) selected.setAttribute('aria-selected','true');
-  document.getElementById('chat-name').textContent=currentChat.name;
-  document.getElementById('chat-avatar').src=currentChat.avatar;
-  renderMessages();
-  // close sidebar on mobile
-  if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
-}
-function renderMessages(){
-  const container=document.getElementById('messages');
-  container.innerHTML="";
-  currentChat.messages.forEach(m=>{
-    const div=document.createElement('div');
-    div.className=`msg ${m.type}`;
-    div.innerHTML=`${m.text}<time>${m.time}</time>`;
-    container.appendChild(div);
+// Simulate infinite scroll by repeating the array
+let loadCount = 0;
+function createCard(data){
+  const card=document.createElement('article');
+  card.className='video-card';
+  card.innerHTML=`
+    <video src="${data.src}" muted autoplay loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>${data.user}</h2>
+        <p>${data.description}</p>
+      </div>
+      <div class="actions">
+        <button class="action-btn like-btn" aria-label="Like" data-liked="false">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <span class="like-count">${data.likes}</span>
+        </button>
+        <button class="action-btn comment-btn" aria-label="Comment">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M21 6h-2v9H5v2c0 .55.45 1 1 1h12l4 4V7c0-.55-.45-1-1-1zM3 4h14c.55 0 1 .45 1 1v9c0 .55-.45 1-1 1H5l-4 4V5c0-.55.45-1 1-1z"/></svg>
+          <span>${data.comments}</span>
+        </button>
+        <button class="action-btn share-btn" aria-label="Share">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7a2.5 2.5 0 0 0 0-1.4l7.05-4.11a2.5 2.5 0 1 0-.9-1.5L8 9.79a2.5 2.5 0 1 0 0 4.42l7.15 4.16c.52.48 1.2.78 1.96.78a2.5 2.5 0 1 0 0-5z"/></svg>
+          <span>Share</span>
+        </button>
+      </div>
+    </div>
+  `;
+  // Like button interaction
+  const likeBtn=card.querySelector('.like-btn');
+  const likeCountSpan=likeBtn.querySelector('.like-count');
+  likeBtn.addEventListener('click',()=>{
+    const liked=likeBtn.getAttribute('data-liked')==='true';
+    if(liked){
+      likeBtn.setAttribute('data-liked','false');
+      likeBtn.classList.remove('liked');
+      likeCountSpan.textContent=--data.likes;
+    }else{
+      likeBtn.setAttribute('data-liked','true');
+      likeBtn.classList.add('liked');
+      likeCountSpan.textContent=++data.likes;
+    }
   });
-  container.scrollTop=container.scrollHeight;
+  // Share interaction
+  const shareBtn=card.querySelector('.share-btn');
+  shareBtn.addEventListener('click',()=>{
+    alert('Share link copied to clipboard (simulated).');
+  });
+  return card;
 }
-function addMessage(text){
-  if(!currentChat) return;
-  const now=new Date();
-  const time=now.getHours().toString().padStart(2,'0')+":"+now.getMinutes().toString().padStart(2,'0');
-  currentChat.messages.push({type:"outgoing",text,time});
-  renderMessages();
-}
-document.getElementById('msgForm').addEventListener('submit',e=>{
-  e.preventDefault();
-  const input=document.getElementById('msgInput');
-  const text=input.value.trim();
-  if(text){
-    addMessage(text);
-    input.value="";
-    // simulate a reply after 1s
-    setTimeout(()=>{
-      const reply={type:"incoming",text:"Got it!",time:new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})};
-      currentChat.messages.push(reply);
-      renderMessages();
-    },1000);
+function loadMore(){
+  const fragment=document.createDocumentFragment();
+  for(let i=0;i<videos.length;i++){
+    const idx=(loadCount*videos.length+i)%videos.length;
+    const data=Object.assign({},videos[idx]); // clone
+    fragment.appendChild(createCard(data));
   }
-});
-document.getElementById('search').addEventListener('input',e=>renderContacts(e.target.value));
-window.addEventListener('resize',()=>{if(window.innerWidth>768) document.getElementById('sidebar').classList.remove('open');});
-document.querySelector('.chat-header button.menu')?.addEventListener('click',()=>{document.getElementById('sidebar').classList.toggle('open');});
-
-// Initial render
-renderContacts();
+  document.getElementById('feed').appendChild(fragment);
+  loadCount++;
+}
+function init(){
+  loadMore();
+  // Simple infinite scroll
+  window.addEventListener('scroll',()=>{
+    if(window.innerHeight+window.scrollY>=document.body.offsetHeight-100){
+      loadMore();
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>

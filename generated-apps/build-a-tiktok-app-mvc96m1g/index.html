@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TikTok‑Style Feed</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin:0; padding:0; height:100%; font-family:system-ui,Arial,sans-serif; background:#000; color:#fff; overflow-y:scroll; scroll-snap-type:y mandatory; }
+  .feed { width:100%; }
+  .video-card {
+    position:relative;
+    height:100vh;
+    width:100%;
+    scroll-snap-align:start;
+    overflow:hidden;
+    background:#111;
+  }
+  .video-card video {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .overlay {
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    pointer-events:none;
+  }
+  .info {
+    padding:1rem;
+    pointer-events:auto;
+  }
+  .info h2 { margin:0; font-size:1.2rem; }
+  .info p { margin:0.2rem 0 0; font-size:0.9rem; opacity:0.8; }
+  .controls {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    margin:0 1rem 1rem 0;
+    pointer-events:auto;
+  }
+  .controls button {
+    background:none;
+    border:none;
+    color:#fff;
+    margin:0.5rem 0;
+    font-size:1.5rem;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .controls button span {
+    font-size:0.8rem;
+    margin-top:0.2rem;
+  }
+  .controls button.liked { color:#ff2b6c; }
+  .header {
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:3rem;
+    background:rgba(0,0,0,0.6);
+    display:flex;
+    align-items:center;
+    padding:0 1rem;
+    z-index:10;
+    backdrop-filter:blur(5px);
+  }
+  .header h1 { margin:0; font-size:1.2rem; }
+  .create-btn {
+    position:fixed;
+    bottom:1.5rem;
+    right:1.5rem;
+    width:3.5rem;
+    height:3.5rem;
+    border-radius:50%;
+    background:#ff2b6c;
+    border:none;
+    color:#fff;
+    font-size:2rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);
+    z-index:10;
+  }
+</style>
+</head>
+<body>
+<header class="header" aria-label="App header">
+  <h1>TikTok Demo</h1>
+</header>
+
+<main class="feed" aria-live="polite">
+  <section class="video-card" data-id="1">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" muted loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>@alice</h2>
+        <p>Sunset vibes 🌅 #nature</p>
+      </div>
+      <div class="controls" aria-label="Video actions">
+        <button class="like-btn" aria-pressed="false" aria-label="Like">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          <span class="count">0</span>
+        </button>
+        <button class="comment-btn" aria-label="Comment">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+          <span>0</span>
+        </button>
+        <button class="share-btn" aria-label="Share">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg>
+          <span>0</span>
+        </button>
+        <button class="profile-btn" aria-label="View profile">
+          <svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="video-card" data-id="2">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm" muted loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>@bob</h2>
+        <p>Cooking hack! 🍳 #food</p>
+      </div>
+      <div class="controls">
+        <button class="like-btn" aria-pressed="false" aria-label="Like"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="count">0</span></button>
+        <button class="comment-btn" aria-label="Comment"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>0</span></button>
+        <button class="share-btn" aria-label="Share"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg><span>0</span></button>
+        <button class="profile-btn" aria-label="View profile"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="video-card" data-id="3">
+    <video src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.ogv" muted loop playsinline></video>
+    <div class="overlay">
+      <div class="info">
+        <h2>@carla</h2>
+        <p>Dance challenge! 💃 #fun</p>
+      </div>
+      <div class="controls">
+        <button class="like-btn" aria-pressed="false" aria-label="Like"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span class="count">0</span></button>
+        <button class="comment-btn" aria-label="Comment"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><span>0</span></button>
+        <button class="share-btn" aria-label="Share"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.02-4.11c.53.5 1.23.81 2.07.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.07 9.81c-.53-.5-1.23-.81-2.07-.81-1.66 0-3 1.34-3 3s1.34 3 3 3c.84 0 1.54-.31 2.07-.81l7.02 4.11c-.05.23-.09.46-.09.7 0 1.66 1.34 3 3 3s3-1.34 3-3-1.34-3-3-3z"/></svg><span>0</span></button>
+        <button class="profile-btn" aria-label="View profile"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/></svg></button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<button class="create-btn" aria-label="Create new video">+</button>
+
+<script>
+  // Auto‑play/pause based on visibility
+  const videos = document.querySelectorAll('video');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        video.play().catch(()=>{}); // ignore autoplay restrictions
+      } else {
+        video.pause();
+      }
+    });
+  }, {threshold: 0.75});
+  videos.forEach(v => observer.observe(v));
+
+  // Like button logic
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pressed = btn.getAttribute('aria-pressed') === 'true';
+      btn.setAttribute('aria-pressed', !pressed);
+      btn.classList.toggle('liked', !pressed);
+      const countSpan = btn.querySelector('.count');
+      let count = parseInt(countSpan.textContent,10);
+      count = pressed ? count-1 : count+1;
+      countSpan.textContent = count;
+    });
+  });
+
+  // Simple comment interaction (placeholder)
+  document.querySelectorAll('.comment-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const comment = prompt('Add a comment (demo only):');
+      if (comment) {
+        const countSpan = btn.querySelector('span');
+        let count = parseInt(countSpan.textContent,10);
+        countSpan.textContent = count+1;
+        console.log('New comment:', comment);
+      }
+    });
+  });
+
+  // Share button placeholder
+  document.querySelectorAll('.share-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert('Share functionality is not implemented in this demo.');
+    });
+  });
+
+  // Profile button placeholder
+  document.querySelectorAll('.profile-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      alert('Profile view is not implemented in this demo.');
+    });
+  });
+
+  // Create button placeholder
+  document.querySelector('.create-btn').addEventListener('click', () => {
+    alert('Create new video flow is not implemented in this demo.');
+  });
+</script>
+</body>
+</html>
